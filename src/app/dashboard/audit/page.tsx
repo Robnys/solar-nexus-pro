@@ -3,8 +3,11 @@
 import { useState } from 'react'
 import { ArrowLeft, Sun, User, Zap, Home, Brain } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 export default function AuditPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     clientName: '',
     monthlyConsumption: '',
@@ -19,9 +22,41 @@ export default function AuditPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert('¡Formulario recibido! Enviando a la IA...')
+    
+    try {
+      // Prepare data for Supabase
+      const auditData = {
+        client_name: formData.clientName,
+        monthly_consumption: parseFloat(formData.monthlyConsumption),
+        roof_surface: parseFloat(formData.roofSurface),
+        created_at: new Date().toISOString()
+      }
+      
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('audits')
+        .insert([auditData])
+        .select()
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        alert(`Error al guardar auditoría: ${error.message}`)
+        return
+      }
+      
+      // Success
+      console.log('Audit saved:', data)
+      alert('¡Auditoría guardada con éxito!')
+      
+      // Redirect to dashboard
+      router.push('/dashboard')
+      
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      alert('Error inesperado. Por favor, inténtalo de nuevo.')
+    }
   }
 
   return (
