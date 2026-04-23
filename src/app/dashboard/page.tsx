@@ -1,4 +1,5 @@
 import { Sun, Zap, Euro, TrendingUp, Battery, Users } from 'lucide-react'
+import Link from 'next/link'
 
 export default function Dashboard() {
   return (
@@ -82,14 +83,17 @@ export default function Dashboard() {
             </p>
           </div>
           
-          <button className="group relative inline-flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-emerald-500/25">
+          <Link 
+            href="/dashboard/audit"
+            className="group relative inline-flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-emerald-500/25"
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
             <div className="relative flex items-center space-x-3">
               <Sun className="h-5 w-5" />
               <span>Nueva Auditoría Solar con IA</span>
               <Zap className="h-4 w-4" />
             </div>
-          </button>
+          </Link>
           
           <p className="text-xs text-slate-500 mt-4">
             Análisis inteligente en menos de 2 minutos
