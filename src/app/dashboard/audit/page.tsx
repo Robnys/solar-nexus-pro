@@ -19,10 +19,31 @@ export default function AuditPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Form data:', formData)
-    // TODO: Implement AI report generation
+    
+    // Capture and validate data
+    const auditData = {
+      clientName: formData.clientName,
+      monthlyConsumption: parseFloat(formData.monthlyConsumption),
+      roofSurface: parseFloat(formData.roofSurface)
+    }
+    
+    // Log data for verification
+    console.log('=== AUDIT DATA CAPTURED ===')
+    console.log('Client Name:', auditData.clientName)
+    console.log('Monthly Consumption (€):', auditData.monthlyConsumption)
+    console.log('Roof Surface (m²):', auditData.roofSurface)
+    console.log('==========================')
+    
+    // Show connection alert
+    alert('Conectando con la IA...\n\nDatos capturados:\n' +
+          `• Cliente: ${auditData.clientName}\n` +
+          `• Consumo: €${auditData.monthlyConsumption}\n` +
+          `• Superficie: ${auditData.roofSurface}m²\n\n` +
+          'Preparando análisis solar...')
+    
+    // TODO: Implement AI report generation and Supabase integration
   }
 
   return (
