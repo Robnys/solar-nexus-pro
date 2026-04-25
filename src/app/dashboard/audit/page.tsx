@@ -26,11 +26,31 @@ export default function AuditPage() {
     e.preventDefault()
     
     try {
+      // Test Supabase connection first
+      console.log('=== TESTING SUPABASE CONNECTION ===')
+      console.log('URL:', 'https://rulombxexbgibwysrqae.supabase.co')
+      console.log('API Key starts with eyJ:', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'.startsWith('eyJ'))
+      
+      // Test basic connection
+      const { data: testData, error: testError } = await supabase
+        .from('audits')
+        .select('count')
+        .limit(1)
+      
+      if (testError) {
+        console.error('=== CONNECTION TEST FAILED ===')
+        console.error('Test error:', testError)
+        alert(`Error de conexión a Supabase: ${testError.message}`)
+        return
+      }
+      
+      console.log('=== CONNECTION SUCCESSFUL ===')
+      
       // Prepare data for Supabase
       const auditData = {
         client_name: formData.clientName,
-        monthly_consumption: parseFloat(formData.monthlyConsumption),
-        roof_surface: parseFloat(formData.roofSurface)
+        monthly_bill: parseFloat(formData.monthlyConsumption),
+        roof_size: parseFloat(formData.roofSurface)
       }
       
       // Insert into Supabase

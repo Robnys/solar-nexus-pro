@@ -1,15 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://rulombxexbgibwysrqae.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1bG9tYnhleGJpYnd5c3JxYWUiLCJpYXQiOjE3MTQwNjQ0MDAsImV4cCI6MjAyOTY0MDQwMH0.L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
+// Test with environment variables first
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rulombxexbgibwysrqae.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
+
+console.log('=== SUPABASE CONFIG ===')
+console.log('URL:', supabaseUrl)
+console.log('API Key length:', supabaseAnonKey.length)
+console.log('API Key starts with eyJ:', supabaseAnonKey.startsWith('eyJ'))
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export interface AuditData {
+  id?: number
   client_name: string
-  monthly_consumption: number
-  roof_surface: number
-  created_at: string
+  monthly_bill: number
+  roof_size: number
+  created_at?: string
 }
 
 export async function saveAuditData(data: Omit<AuditData, 'created_at'>) {
