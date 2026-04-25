@@ -13,6 +13,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const router = useRouter()
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -32,7 +34,10 @@ export default function LoginPage() {
 
         if (data.user && !data.session) {
           // User created but email not confirmed
-          setError('Por favor, revisa tu email para confirmar tu cuenta.')
+          setShowConfirmation(true)
+          setMessage('¡Cuenta creada! Por favor, revisa tu email y haz clic en el enlace de confirmación.')
+          setEmail('')
+          setPassword('')
         } else if (data.session) {
           // User created and signed in
           router.push('/dashboard')
@@ -57,6 +62,30 @@ export default function LoginPage() {
     }
   }
 
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('Por favor, introduce tu email para restablecer la contraseña')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login?reset=true`,
+      })
+
+      if (error) throw error
+
+      setMessage('Email de restablecimiento enviado. Revisa tu bandeja de entrada.')
+    } catch (error: any) {
+      setError(error.message || 'Error al enviar email de restablecimiento')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       {/* Background Pattern */}
@@ -72,13 +101,40 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">SolarNexus Pro</h1>
           <p className="text-slate-400">
-            {isSignUp ? 'Crea tu cuenta para comenzar' : 'Bienvenido de nuevo'}
+            {showConfirmation 
+              ? 'Confirma tu email' 
+              : isSignUp 
+                ? 'Crea tu cuenta para comenzar' 
+                : 'Bienvenido de nuevo'
+            }
           </p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
-          <form onSubmit={handleAuth} className="space-y-6">
+        {/* Confirmation Message */}
+          {showConfirmation && message && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-emerald-400 text-sm font-medium">{message}</p>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Una vez confirmado, podrás iniciar sesión con tu email y contraseña.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Login Form - Hide when showing confirmation */}
+        {!showConfirmation && (
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+            <form onSubmit={handleAuth} className="space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
@@ -156,13 +212,32 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Password Reset */}
+          {!isSignUp && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={loading}
+                className="text-slate-400 hover:text-emerald-400 text-sm transition-colors disabled:opacity-50"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
+
           {/* Toggle Sign In/Up */}
           <div className="mt-6 text-center">
             <p className="text-slate-400">
               {isSignUp ? '¿Ya tienes una cuenta?' : '¿No tienes una cuenta?'}{' '}
               <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsSignUp(!isSignUp)
+                  setShowConfirmation(false)
+                  setError(null)
+                  setMessage(null)
+                }}
                 className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
               >
                 {isSignUp ? 'Inicia sesión' : 'Regístrate'}
@@ -170,6 +245,31 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+        )}
+        
+        {/* Success Message Display */}
+        {showConfirmation && message && (
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">¡Cuenta Creada!</h3>
+              <p className="text-slate-400 mb-6">{message}</p>
+              <button
+                onClick={() => {
+                  setShowConfirmation(false)
+                  setIsSignUp(false)
+                }}
+                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-lg transition-colors"
+              >
+                Ir a Iniciar Sesión
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 text-center">
