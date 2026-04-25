@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Sun, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { delay, retryWithBackoff } from '@/lib/supabase-config'
+import { Sun, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -24,11 +25,17 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        // Sign up
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        })
+        // Sign up con retry para evitar rate limiting
+        const { data, error } = await retryWithBackoff(async () => {
+          await delay(1000) // Delay inicial para evitar rate limiting
+          return await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
+            }
+          })
+        }, 3, 1500)
 
         if (error) throw error
 
@@ -44,10 +51,13 @@ export default function LoginPage() {
         }
       } else {
         // Sign in
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+        const { data, error } = await retryWithBackoff(async () => {
+          await delay(500)
+          return await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+        }, 2, 1000)
 
         if (error) throw error
 
@@ -56,7 +66,14 @@ export default function LoginPage() {
         }
       }
     } catch (error: any) {
-      setError(error.message || 'Error en la autenticación')
+      // Manejo específico de rate limiting
+      if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+        setError('Has excedido el límite de intentos. Por favor, espera unos minutos antes de intentar de nuevo.')
+      } else if (error.message?.includes('email_conflict')) {
+        setError('Este email ya está registrado. Intenta iniciar sesión o recupera tu contraseña.')
+      } else {
+        setError(error.message || 'Error en la autenticación')
+      }
     } finally {
       setLoading(false)
     }
@@ -72,15 +89,22 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login?reset=true`,
-      })
+      const { error } = await retryWithBackoff(async () => {
+        await delay(2000) // Delay mayor para evitar rate limiting
+        return await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/login?reset=true`,
+        })
+      }, 3, 2000)
 
       if (error) throw error
 
-      setMessage('Email de restablecimiento enviado. Revisa tu bandeja de entrada.')
+      setMessage('Email de restablecimiento enviado. Revisa tu bandeja de entrada y spam.')
     } catch (error: any) {
-      setError(error.message || 'Error al enviar email de restablecimiento')
+      if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+        setError('Has excedido el límite de intentos. Por favor, espera 10 minutos antes de intentar de nuevo.')
+      } else {
+        setError(error.message || 'Error al enviar email de restablecimiento')
+      }
     } finally {
       setLoading(false)
     }
@@ -190,8 +214,32 @@ export default function LoginPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-red-400 text-sm font-medium">{error}</p>
+                    {error.includes('límite') && (
+                      <p className="text-red-300 text-xs mt-1">
+                        💡 Tip: Los límites de email se resetean cada 10 minutos. También puedes usar una cuenta de Gmail temporal.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {message && !showConfirmation && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-emerald-400 text-sm">{message}</p>
+                </div>
               </div>
             )}
 
@@ -212,19 +260,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Password Reset */}
-          {!isSignUp && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={handlePasswordReset}
-                disabled={loading}
-                className="text-slate-400 hover:text-emerald-400 text-sm transition-colors disabled:opacity-50"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </div>
-          )}
+          {/* Password Reset - Available in both modes */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={loading || !email}
+              className="text-slate-400 hover:text-emerald-400 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSignUp ? '¿Ya tienes cuenta? Recupera tu contraseña' : '¿Olvidaste tu contraseña?'}
+            </button>
+          </div>
 
           {/* Toggle Sign In/Up */}
           <div className="mt-6 text-center">
