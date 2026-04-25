@@ -60,9 +60,9 @@ export default function Home() {
             
             <Link
               href="/dashboard/new"
-              className="inline-flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-all duration-200"
+              className="inline-flex items-center justify-center px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all duration-200 border border-slate-700"
             >
-              Test Dashboard Directo
+              Crear Cuenta
             </Link>
           </div>
           
