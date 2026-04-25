@@ -17,6 +17,17 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.push('/dashboard')
+      }
+    }
+    checkSession()
+  }, [router])
+
   const handleTraditionalLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

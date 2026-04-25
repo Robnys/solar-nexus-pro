@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Debug</title>
+</head>
+<body>
+    <h1>OAuth Debug Test</h1>
+    <p>URL actual: <span id="current-url"></span></p>
+    <p>Hash: <span id="hash"></span></p>
+    <p>Access Token: <span id="access-token"></span></p>
+    
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('hash').textContent = window.location.hash;
+        
+        // Check for access token in hash
+        const hash = window.location.hash;
+        const accessTokenMatch = hash.match(/access_token=([^&]+)/);
+        document.getElementById('access-token').textContent = accessTokenMatch ? accessTokenMatch[1] : 'No encontrado';
+    </script>
+</body>
+</html>
