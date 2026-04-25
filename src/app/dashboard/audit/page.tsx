@@ -30,8 +30,7 @@ export default function AuditPage() {
       const auditData = {
         client_name: formData.clientName,
         monthly_consumption: parseFloat(formData.monthlyConsumption),
-        roof_surface: parseFloat(formData.roofSurface),
-        created_at: new Date().toISOString()
+        roof_surface: parseFloat(formData.roofSurface)
       }
       
       // Insert into Supabase
@@ -48,10 +47,14 @@ export default function AuditPage() {
       
       // Success
       console.log('Audit saved:', data)
-      alert('¡Auditoría guardada con éxito!')
+      alert('¡Datos guardados en la base de datos!')
       
-      // Redirect to dashboard
-      router.push('/dashboard')
+      // Clear form
+      setFormData({
+        clientName: '',
+        monthlyConsumption: '',
+        roofSurface: ''
+      })
       
     } catch (error) {
       console.error('Unexpected error:', error)
