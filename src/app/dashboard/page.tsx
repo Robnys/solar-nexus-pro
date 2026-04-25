@@ -1,4 +1,4 @@
-import { Sun, Zap, Euro, TrendingUp, Battery, Users } from 'lucide-react'
+import { Sun, Zap, Euro, TrendingUp, Battery, Users, History } from 'lucide-react'
 import Link from 'next/link'
 
 export default function Dashboard() {
@@ -22,6 +22,13 @@ export default function Dashboard() {
                 <Users className="h-4 w-4" />
                 <span className="text-sm">Admin</span>
               </div>
+              <Link 
+                href="/dashboard/history"
+                className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
+              >
+                <History className="h-4 w-4" />
+                <span className="text-sm">Historial</span>
+              </Link>
             </div>
           </div>
         </div>
