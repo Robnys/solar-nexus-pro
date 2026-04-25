@@ -15,19 +15,32 @@ import { Calendar, User, Euro, Home, Eye } from 'lucide-react'
 import Link from 'next/link'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  'https://rulombxexbgibwysrqae.supabase.co',
+  'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
 )
 
 export default async function HistoryPage() {
   // Server component - instant data loading
+  console.log('=== SUPABASE CONNECTION DEBUG ===')
+  console.log('Supabase URL:', 'https://rulombxexbgibwysrqae.supabase.co')
+  console.log('API Key length:', 'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'.length)
+  console.log('Attempting to fetch audits...')
+  
   const { data: audits, error } = await supabase
     .from('audits')
     .select('*')
     .order('created_at', { ascending: false })
 
+  console.log('=== SUPABASE RESPONSE ===')
+  console.log('Data received:', audits)
+  console.log('Error received:', error)
+
   if (error) {
-    console.error('Error fetching audits:', error)
+    console.error('=== DETAILED ERROR ===')
+    console.error('Error message:', error.message)
+    console.error('Error details:', error.details)
+    console.error('Error hint:', error.hint)
+    console.error('Error code:', error.code)
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
