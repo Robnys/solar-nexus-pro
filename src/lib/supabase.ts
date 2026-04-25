@@ -4,12 +4,15 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rulombxexbgibwysrqae.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
 
+// Remove any /rest/v1/ suffix that might be causing duplication
+const cleanSupabaseUrl = supabaseUrl.replace(/\/rest\/v1\/$/, '')
+
 console.log('=== SUPABASE CONFIG ===')
 console.log('URL:', supabaseUrl)
 console.log('API Key length:', supabaseAnonKey.length)
 console.log('API Key starts with eyJ:', supabaseAnonKey.startsWith('eyJ'))
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(cleanSupabaseUrl, supabaseAnonKey)
 
 export interface AuditData {
   id?: number
