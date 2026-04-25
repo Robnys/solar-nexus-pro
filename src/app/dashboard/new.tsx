@@ -1,6 +1,6 @@
 'use client'
 
-export default function NewDashboard() {
+export default function NewDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <div className="max-w-6xl mx-auto">
