@@ -27,9 +27,9 @@ export default function AuthCallback() {
           setStatus('success')
           setMessage('¡Autenticación exitosa! Redirigiendo...')
           
-          // Redirigir al dashboard después de un breve momento
+          // Redirigir al dashboard original después de un breve momento
           setTimeout(() => {
-            window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard/new'
+            window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard'
           }, 1500)
         } else {
           // Intentar obtener la sesión del URL hash
@@ -44,7 +44,7 @@ export default function AuthCallback() {
             setMessage('¡Autenticación exitosa! Redirigiendo...')
             
             setTimeout(() => {
-              window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard/new'
+              window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard'
             }, 1500)
           } else {
             throw new Error('No se pudo establecer la sesión')
