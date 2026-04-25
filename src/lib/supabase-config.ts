@@ -16,11 +16,11 @@ export const supabaseConfig = {
     templates: {
       signup: {
         subject: 'Bienvenido a SolarNexus Pro',
-        redirectUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/login?confirmed=true`,
+        redirectUrl: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/login?confirmed=true`,
       },
       reset: {
         subject: 'Recupera tu contraseña en SolarNexus Pro',
-        redirectUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+        redirectUrl: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/reset-password`,
       }
     }
   }

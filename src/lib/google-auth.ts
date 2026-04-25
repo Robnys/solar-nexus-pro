@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 export const googleAuthConfig = {
   provider: 'google',
   options: {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
+    redirectTo: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard`,
     queryParams: {
       access_type: 'offline',
       prompt: 'consent',
