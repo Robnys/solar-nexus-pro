@@ -181,6 +181,8 @@ export default async function HistoryPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {/* Debug: Log audit ID */}
+                      {console.log(`Audit ID: ${audit.id}, Link: /dashboard/history/${audit.id}`)}
                       <Link 
                         href={`/dashboard/history/${audit.id}`}
                         className="inline-flex items-center space-x-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-medium rounded-lg transition-colors text-sm"

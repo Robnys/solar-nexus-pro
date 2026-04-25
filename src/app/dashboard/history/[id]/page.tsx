@@ -19,13 +19,28 @@ interface AuditDetailPageProps {
 }
 
 export default async function AuditDetailPage({ params }: AuditDetailPageProps) {
+  // Await params in Next.js 15
+  const resolvedParams = await params
+  
+  console.log('=== DETAIL PAGE DEBUG ===')
+  console.log('Params received:', resolvedParams)
+  console.log('Audit ID from params:', resolvedParams.id)
+  console.log('Type of ID:', typeof resolvedParams.id)
+  
   const { data: audit, error } = await supabase
     .from('audits')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', resolvedParams.id)
     .single()
 
+  console.log('Supabase query result:')
+  console.log('Data:', audit)
+  console.log('Error:', error)
+
   if (error || !audit) {
+    console.log('=== NOT FOUND TRIGGERED ===')
+    console.log('Error:', error)
+    console.log('Audit data:', audit)
     notFound()
   }
 
