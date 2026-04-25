@@ -23,7 +23,7 @@ export async function signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard`,
+        redirectTo: `${window.location.origin}/dashboard`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

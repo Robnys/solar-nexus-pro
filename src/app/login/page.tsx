@@ -20,32 +20,9 @@ export default function LoginPage() {
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
-      // Handle OAuth tokens in URL hash first
-      if (window.location.hash && window.location.hash.includes('access_token')) {
-        await supabase.auth.getSession()
-        window.history.replaceState({}, document.title, window.location.pathname)
-        
-        // Force redirect to dashboard immediately after OAuth
-        setTimeout(() => {
-          window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard'
-        }, 1000)
-        return
-      }
-
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        // Force redirect to dashboard immediately
-        window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard'
-      } else {
-        // Check if there's a redirectTo parameter
-        const urlParams = new URLSearchParams(window.location.search)
-        const redirectTo = urlParams.get('redirectTo')
-        
-        if (redirectTo) {
-          router.push(redirectTo)
-        } else {
-          router.push('/dashboard')
-        }
+        router.push('/dashboard')
       }
     }
     checkSession()
