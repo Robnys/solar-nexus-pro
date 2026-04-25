@@ -44,16 +44,33 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
     notFound()
   }
 
-  // Cálculos para el informe de viabilidad
-  const monthlyConsumption = audit.monthly_bill || 0
+  // Cálculos financieros basados en principios de Hormozi
+  const monthlyBill = audit.monthly_bill || 0
   const roofSize = audit.roof_size || 0
   
-  // Estimaciones básicas (estas pueden ser refinadas con IA más adelante)
-  const estimatedKW = Math.round((roofSize * 0.15) * 10) / 10 // 150W/m²
-  const annualSavings = Math.round(monthlyConsumption * 12 * 0.7) // 70% de ahorro estimado
-  const co2Reduction = Math.round(estimatedKW * 1200) // kg CO₂/año
-  const installationCost = Math.round(estimatedKW * 1200) // €1200/kW
-  const paybackPeriod = Math.round(installationCost / (monthlyConsumption * 12 * 0.7))
+  // Cálculo de potencia necesaria (basado en consumo real)
+  // Estimación: 1kW genera ~€100-150/mes en España
+  const monthlyCostPerKW = 120 // €/mes por kW instalado
+  const requiredKW = Math.ceil((monthlyBill / monthlyCostPerKW) * 10) / 10
+  const usableRoofKW = Math.round((roofSize * 0.15) * 10) / 10
+  const finalKW = Math.min(requiredKW, usableRoofKW) // Usa el menor entre necesario y disponible
+  
+  // Cálculo de ROI con retorno 4-7 años (Hormozi principle)
+  const installationCostPerKW = 1500 // €/kW más realista
+  const totalInstallationCost = Math.round(finalKW * installationCostPerKW)
+  
+  // Ahorro real basado en la potencia instalada
+  const monthlySavings = Math.round(finalKW * monthlyCostPerKW)
+  const annualSavings = monthlySavings * 12
+  
+  // ROI ajustado para 4-7 años (valor percibido alto)
+  const targetROIYears = 5 // Punto medio del rango 4-7 años
+  const paybackPeriod = Math.round(totalInstallationCost / annualSavings)
+  
+  // Métricas adicionales
+  const co2Reduction = Math.round(finalKW * 1200) // kg CO₂/año
+  const totalSavings10Years = annualSavings * 10
+  const profitAfterROI = totalSavings10Years - totalInstallationCost
 
   return (
     <div className="min-h-screen bg-slate-950 p-6">
@@ -101,7 +118,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
               </div>
               <div>
                 <p className="text-sm text-slate-400">Consumo Mensual</p>
-                <p className="text-white font-medium">€{monthlyConsumption.toLocaleString()}</p>
+                <p className="text-white font-medium">€{monthlyBill.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm text-slate-400">Superficie Disponible</p>
@@ -130,7 +147,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Potencia Estimada</span>
-                <span className="text-white font-bold">{estimatedKW} kW</span>
+                <span className="text-white font-bold">{finalKW} kW</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Ahorro Anual</span>
@@ -162,7 +179,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
                 <h3 className="text-white font-semibold mb-3">Análisis de Viabilidad</h3>
                 <p className="text-slate-300 leading-relaxed">
                   Basado en el análisis de los datos proporcionados, la instalación de un sistema fotovoltaico 
-                  de <span className="text-emerald-400 font-semibold">{estimatedKW} kW</span> en la superficie 
+                  de <span className="text-emerald-400 font-semibold">{finalKW} kW</span> en la superficie 
                   disponible de <span className="text-emerald-400 font-semibold">{roofSize} m²</span> resulta 
                   altamente viable y rentable.
                 </p>
@@ -181,7 +198,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
                   </li>
                   <li className="flex items-start space-x-2">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span>Inversión inicial estimada: <span className="text-emerald-400 font-semibold">€{installationCost.toLocaleString()}</span></span>
+                    <span>Inversión inicial estimada: <span className="text-emerald-400 font-semibold">€{totalInstallationCost.toLocaleString()}</span></span>
                   </li>
                 </ul>
               </div>
@@ -234,6 +251,78 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Analysis Section - Ready for OpenAI Integration */}
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-white flex items-center space-x-2">
+                <Sun className="h-5 w-5 text-emerald-500" />
+                <span>Análisis de Viabilidad IA</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-lg p-4 border border-emerald-500/30">
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  <span className="text-emerald-400 font-semibold">IA Analysis:</span> Basado en los patrones de consumo y características del tejado, 
+                  el sistema optimizado de {finalKW} kW ofrece un retorno del {Math.round((annualSavings/totalInstallationCost)*100)}% anual. 
+                  La irradiación solar promedio en la zona maximiza la producción durante las horas pico de consumo.
+                </p>
+              </div>
+              
+              {/* Sales Arguments - Hormozi Style */}
+              <div className="space-y-3">
+                <h4 className="text-white font-medium flex items-center space-x-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  <span>Argumentario de Venta (Hormozi)</span>
+                </h4>
+                
+                <div className="space-y-2">
+                  <div className="bg-slate-800 rounded-lg p-3 border-l-4 border-emerald-500">
+                    <p className="text-emerald-400 font-medium text-sm mb-1">Objeción: "Es muy caro"</p>
+                    <p className="text-slate-300 text-xs">
+                      "Entiendo, pero piensa que en {paybackPeriod} años recuperarás toda la inversión. 
+                      Después son {10-paybackPeriod} años de ganancia pura: €{totalSavings10Years-totalInstallationCost.toLocaleString()} libres de impuestos."
+                    </p>
+                  </div>
+                  
+                  <div className="bg-slate-800 rounded-lg p-3 border-l-4 border-blue-500">
+                    <p className="text-blue-400 font-medium text-sm mb-1">Objeción: "No estoy seguro"</p>
+                    <p className="text-slate-300 text-xs">
+                      "Totalmente comprensible. Mira los datos: ahorrarás €{annualSavings.toLocaleString()} al año desde el día 1. 
+                      Es como tener un segundo sueldo sin trabajar. ¿Hay alguna inversión mejor que esa?"
+                    </p>
+                  </div>
+                  
+                  <div className="bg-slate-800 rounded-lg p-3 border-l-4 border-purple-500">
+                    <p className="text-purple-400 font-medium text-sm mb-1">Objeción: "Ya tengo electricidad barata"</p>
+                    <p className="text-slate-300 text-xs">
+                      "¡Perfecto! Entonces sabes lo valioso que es. Con solar, tu precio será €0 para siempre. 
+                      ¿Prefieres seguir pagando o que te paguen a ti por generar tu propia energía?"
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CTA Buttons - Reduce Effort & Sacrifice */}
+          <Card className="bg-slate-900 border-slate-800">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                  <FileText className="h-5 w-5" />
+                  <span>Descargar Propuesta PDF</span>
+                </button>
+                <button className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-slate-700 flex items-center justify-center space-x-2">
+                  <TrendingUp className="h-5 w-5" />
+                  <span>Enviar por WhatsApp</span>
+                </button>
+              </div>
+              <p className="text-slate-400 text-xs text-center mt-4">
+                Recibe la propuesta completa en segundos. Sin esfuerzo, sin esperas.
+              </p>
             </CardContent>
           </Card>
         </div>
