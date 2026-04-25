@@ -31,20 +31,7 @@ export default function AuditPage() {
       console.log('URL:', 'https://rulombxexbgibwysrqae.supabase.co')
       console.log('API Key starts with eyJ:', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'.startsWith('eyJ'))
       
-      // Test basic connection
-      const { data: testData, error: testError } = await supabase
-        .from('audits')
-        .select('count')
-        .limit(1)
-      
-      if (testError) {
-        console.error('=== CONNECTION TEST FAILED ===')
-        console.error('Test error:', testError)
-        alert(`Error de conexión a Supabase: ${testError.message}`)
-        return
-      }
-      
-      console.log('=== CONNECTION SUCCESSFUL ===')
+      console.log('=== TESTING INSERT PERMISSIONS ===')
       
       // Prepare data for Supabase
       const auditData = {
