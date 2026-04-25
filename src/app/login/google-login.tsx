@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { signInWithGoogle, setGoogleUserPassword, signInWithEmail } from '@/lib/google-auth'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Chrome, Lock, Mail, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
+import { Globe, Lock, Mail, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 
 interface GoogleLoginProps {
   onSuccess?: () => void
@@ -193,7 +193,7 @@ export default function GoogleLogin({ onSuccess }: GoogleLoginProps) {
           </>
         ) : (
           <>
-            <Chrome className="h-5 w-5" />
+            <Globe className="h-5 w-5" />
             <span>Continuar con Google</span>
           </>
         )}

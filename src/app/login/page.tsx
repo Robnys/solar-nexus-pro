@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Sun, Chrome, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
+import { Sun, Globe, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import GoogleLogin from './google-login'
