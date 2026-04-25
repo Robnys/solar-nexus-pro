@@ -20,9 +20,23 @@ export default function LoginPage() {
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
+      // Handle OAuth tokens in URL hash first
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        await supabase.auth.getSession()
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        router.push('/dashboard')
+        // Check if there's a redirectTo parameter
+        const urlParams = new URLSearchParams(window.location.search)
+        const redirectTo = urlParams.get('redirectTo')
+        
+        if (redirectTo) {
+          router.push(redirectTo)
+        } else {
+          router.push('/dashboard')
+        }
       }
     }
     checkSession()
