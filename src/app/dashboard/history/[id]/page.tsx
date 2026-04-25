@@ -234,8 +234,8 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
                     <span>Configuración Óptima</span>
                   </h4>
                   <p className="text-slate-300 text-sm">
-                    {Math.round(estimatedKW * 1000 / 550)} paneles de 550W<br />
-                    Inversor de {estimatedKW} kW<br />
+                    {Math.round(finalKW * 1000 / 550)} paneles de 550W<br />
+                    Inversor de {finalKW} kW<br />
                     Estructura de fijación aluminio
                   </p>
                 </div>
