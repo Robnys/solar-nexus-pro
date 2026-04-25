@@ -16,14 +16,6 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // First, handle OAuth tokens in URL hash
-        if (window.location.hash && window.location.hash.includes('access_token')) {
-          // Let Supabase handle the OAuth tokens
-          await supabase.auth.getSession()
-          // Clean the URL
-          window.history.replaceState({}, document.title, window.location.pathname)
-        }
-
         // Get user session first
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
@@ -49,7 +41,7 @@ export default function Dashboard() {
     }
 
     fetchData()
-  }, [router])
+  }, [])
 
   const handleLogout = async () => {
     try {
