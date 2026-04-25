@@ -20,19 +20,9 @@ export const googleAuthConfig = {
 // Función principal de login con Google
 export async function signInWithGoogle() {
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        }
-      }
-    })
-
-    if (error) throw error
-    return { success: true, data }
+    // Forzar redirección directa al dashboard
+    window.location.href = `https://rulombxexbgibwysrqae.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard&response_type=code&client_id=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlbiI6Im5vbmUiLCJpYXQiOjE3MjQ2MjU1NzksImV4cCI6MjA2MDA3MTU3OX0.M1P-yw8Q4hJ1X7kKJWwqOy9J4qgV3qR4nY7kF9A8`
+    return { success: true, data: null }
   } catch (error: any) {
     console.error('Error en Google OAuth:', error)
     return { success: false, error: error.message }
