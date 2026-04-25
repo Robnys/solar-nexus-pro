@@ -8,8 +8,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  'https://rulombxexbgibwysrqae.supabase.co',
+  'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
 )
 
 interface AuditDetailPageProps {
@@ -54,9 +54,12 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
               <span>Volver al Historial</span>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Informe de Viabilidad Solar</h1>
-              <p className="text-slate-400">
-                Análisis completo para {audit.client_name}
+              <h1 className="text-4xl font-bold text-white mb-2">Informe Ejecutivo</h1>
+              <p className="text-xl text-emerald-400 font-semibold">
+                {audit.client_name}
+              </p>
+              <p className="text-slate-400 mt-1">
+                Análisis de Viabilidad Solar
               </p>
             </div>
           </div>
