@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { supabaseServer } from './lib/supabase'
 
 export async function middleware(request: NextRequest) {
   // Skip middleware for static files and API routes
@@ -13,25 +12,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get the session from the request
-  const { data: { session }, error } = await supabaseServer.auth.getSession()
-
-  // Protected routes - specific dashboard routes (exclude /dashboard/new for testing)
-  const protectedRoutes = ['/dashboard', '/dashboard/history', '/dashboard/audit']
-  const isProtectedRoute = protectedRoutes.some(route =>
-    request.nextUrl.pathname.startsWith(route) && !request.nextUrl.pathname.startsWith('/dashboard/new')
-  )
-
-  // If trying to access protected route without session, redirect to login
-  if (isProtectedRoute && !session) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // If authenticated and trying to access login, redirect to dashboard
-  if (session && request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // Skip middleware for OAuth callback
+  if (request.nextUrl.pathname.startsWith('/auth/callback')) {
+    return NextResponse.next()
   }
 
   return NextResponse.next()
