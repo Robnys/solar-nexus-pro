@@ -14,7 +14,7 @@ export default function AuthCallback() {
     const handleCallback = async () => {
       try {
         // Esperar un momento para que la sesión se establezca
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
         // Verificar si tenemos sesión
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -32,9 +32,26 @@ export default function AuthCallback() {
             router.push('/dashboard')
           }, 1500)
         } else {
-          throw new Error('No se pudo establecer la sesión')
+          // Intentar obtener la sesión del URL hash
+          const { data: { session: sessionFromHash }, error: hashError } = await supabase.auth.getSession()
+          
+          if (hashError) {
+            throw hashError
+          }
+          
+          if (sessionFromHash) {
+            setStatus('success')
+            setMessage('¡Autenticación exitosa! Redirigiendo...')
+            
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1500)
+          } else {
+            throw new Error('No se pudo establecer la sesión')
+          }
         }
       } catch (error: any) {
+        console.error('Error en callback:', error)
         setStatus('error')
         setMessage(error.message || 'Error en la autenticación')
         
