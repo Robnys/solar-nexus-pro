@@ -29,7 +29,7 @@ export default function AuthCallback() {
           
           // Redirigir al dashboard después de un breve momento
           setTimeout(() => {
-            router.push('/dashboard')
+            window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard/test'
           }, 1500)
         } else {
           // Intentar obtener la sesión del URL hash
@@ -44,7 +44,7 @@ export default function AuthCallback() {
             setMessage('¡Autenticación exitosa! Redirigiendo...')
             
             setTimeout(() => {
-              router.push('/dashboard')
+              window.location.href = 'https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/dashboard/test'
             }, 1500)
           } else {
             throw new Error('No se pudo establecer la sesión')
