@@ -1,11 +1,12 @@
-'use server'
+'use client'
 
 import { createClient } from '@supabase/supabase-js'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, User, Euro, Home, Calendar, FileText, TrendingUp, Sun, Battery } from 'lucide-react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 const supabase = createClient(
   'https://rulombxexbgibwysrqae.supabase.co',
@@ -18,30 +19,157 @@ interface AuditDetailPageProps {
   }
 }
 
-export default async function AuditDetailPage({ params }: AuditDetailPageProps) {
-  // Await params in Next.js 15
-  const resolvedParams = await params
-  
-  console.log('=== DETAIL PAGE DEBUG ===')
-  console.log('Params received:', resolvedParams)
-  console.log('Audit ID from params:', resolvedParams.id)
-  console.log('Type of ID:', typeof resolvedParams.id)
-  
-  const { data: audit, error } = await supabase
-    .from('audits')
-    .select('*')
-    .eq('id', resolvedParams.id)
-    .single()
+export default function AuditDetailPage({ params }: AuditDetailPageProps) {
+  const [audit, setAudit] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const router = useRouter()
 
-  console.log('Supabase query result:')
-  console.log('Data:', audit)
-  console.log('Error:', error)
+  useEffect(() => {
+    const fetchAudit = async () => {
+      try {
+        const resolvedParams = await params
+        const auditId = resolvedParams.id
+        
+        console.log('=== SUPABASE QUERY DEBUG ===')
+        console.log('Audit ID to query:', auditId)
+        
+        const { data: auditData, error: fetchError } = await supabase
+          .from('audits')
+          .select('*')
+          .eq('id', auditId)
+          .single()
+
+        console.log('Supabase query result:')
+        console.log('Data:', auditData)
+        console.log('Error:', fetchError)
+
+        if (fetchError || !auditData) {
+          console.log('=== NOT FOUND TRIGGERED ===')
+          console.log('Error:', fetchError)
+          console.log('Audit data:', auditData)
+          notFound()
+          return
+        }
+
+        setAudit(auditData)
+        // Trigger AI analysis after data is loaded
+        generateAIAnalysis(auditData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error loading audit')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAudit()
+  }, [params])
+
+  // Función para generar análisis con IA
+  const generateAIAnalysis = async (auditData: any) => {
+    setAiLoading(true)
+    
+    try {
+      // Simular delay para efecto de "análisis"
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Mock de análisis basado en los datos del cliente
+      const monthlyBill = auditData.monthly_bill || 0
+      const roofSize = auditData.roof_size || 0
+      const finalKW = Math.min(Math.ceil((monthlyBill / 120) * 10) / 10, Math.round((roofSize * 0.15) * 10) / 10)
+      const annualSavings = Math.round(finalKW * 120 * 12)
+      const paybackPeriod = Math.round((finalKW * 1500) / (finalKW * 120 * 12))
+      
+      const analysis = `Tras analizar detalladamente tu perfil de consumo y las características de tu tejado, he determinado que la instalación de ${finalKW} kW de potencia es la solución óptima para maximizar tu retorno de inversión. Esta configuración específica aprovechará al máximo los ${roofSize} m² disponibles de tu tejado, optimizando la orientación y el espacio para garantizar la máxima generación de energía.
+
+Tu consumo actual de €${monthlyBill}/mes se verá drásticamente reducido gracias a una producción anual estimada de ${Math.round(finalKW * 1200)} kWh, lo que representa un ahorro real de €${annualSavings} anuales. Esto significa que tu factura eléctrica podría reducirse hasta en un ${Math.round((annualSavings / (monthlyBill * 12)) * 100)}%, permitiéndote recuperar la inversión inicial en aproximadamente ${paybackPeriod} años.
+
+La tecnología de paneles de alta eficiencia que proponemos, combinada con tu perfil de consumo diurno, asegura una autoconsumo del 85-90%, minimizando la dependencia de la red y maximizando tus ahorros desde el primer día.`
+
+      setAiAnalysis(analysis)
+    } catch (error) {
+      console.error('Error generating AI analysis:', error)
+      setAiAnalysis('No se pudo generar el análisis detallado en este momento.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // Función para descargar PDF
+  const handleDownloadPDF = () => {
+    if (!audit) return
+    
+    // Crear contenido del PDF
+    const pdfContent = `
+INFORME SOLAR - SOLARNEXUS PRO
+================================
+
+Cliente: ${audit.client_name || 'N/A'}
+Fecha: ${new Date().toLocaleDateString('es-ES')}
+
+RESUMEN EJECUTIVO
+-----------------
+Potencia Recomendada: ${finalKW} kW
+Inversión Inicial: €${totalInstallationCost}
+Ahorro Anual: €${annualSavings}
+Período de Retorno: ${paybackPeriod} años
+Reducción CO₂: ${co2Reduction} kg/año
+
+ANÁLISIS DE VIABILIDAD DETALLADO
+--------------------------------
+${aiAnalysis || 'Análisis no disponible'}
+
+BENEFICIOS ECONÓMICOS
+--------------------
+Ahorro 10 años: €${totalSavings10Years}
+Ganancia post-ROI: €${profitAfterROI}
+
+CONFIGURACIÓN TÉCNICA
+---------------------
+Paneles: ${Math.round(finalKW * 1000 / 550)} paneles de 550W
+Inversor: ${finalKW} kW
+Superficie utilizada: ${roofSize} m²
+
+Para más información, contacte con SolarNexus Pro
+    `.trim()
+    
+    // Crear blob y descargar
+    const blob = new Blob([pdfContent], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `informe_solar_${audit.client_name || 'cliente'}_${new Date().toISOString().split('T')[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Función para compartir por WhatsApp
+  const handleWhatsAppShare = () => {
+    if (!audit) return
+    
+    const message = `Hola ${audit.client_name || 'Cliente'}, aquí tienes tu Informe Solar de SolarNexus Pro. ¡Tu retorno es de solo ${audit.paybackPeriod || 0} años! Ver informe completo: ${window.location.href}`
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, '_blank')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 p-6 flex items-center justify-center">
+        <div className="text-white">Cargando informe...</div>
+      </div>
+    )
+  }
 
   if (error || !audit) {
-    console.log('=== NOT FOUND TRIGGERED ===')
-    console.log('Error:', error)
-    console.log('Audit data:', audit)
-    notFound()
+    return (
+      <div className="min-h-screen bg-slate-950 p-6 flex items-center justify-center">
+        <div className="text-red-500">Error: {error || 'Audit not found'}</div>
+      </div>
+    )
   }
 
   // Cálculos financieros basados en principios de Hormozi
@@ -176,13 +304,32 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h3 className="text-white font-semibold mb-3">Análisis de Viabilidad</h3>
-                <p className="text-slate-300 leading-relaxed">
-                  Basado en el análisis de los datos proporcionados, la instalación de un sistema fotovoltaico 
-                  de <span className="text-emerald-400 font-semibold">{finalKW} kW</span> en la superficie 
-                  disponible de <span className="text-emerald-400 font-semibold">{roofSize} m²</span> resulta 
-                  altamente viable y rentable.
-                </p>
+                <h3 className="text-white font-semibold mb-3 flex items-center space-x-2">
+                  <span>Análisis de Viabilidad</span>
+                  {aiLoading && (
+                    <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                </h3>
+                {aiLoading ? (
+                  <div className="space-y-3">
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-full"></div>
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-5/6"></div>
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-4/5"></div>
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-full"></div>
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-3/4"></div>
+                  </div>
+                ) : (
+                  <p className="text-slate-300 leading-relaxed">
+                    {aiAnalysis || (
+                      <>
+                        Basado en el análisis de los datos proporcionados, la instalación de un sistema fotovoltaico 
+                        de <span className="text-emerald-400 font-semibold">{finalKW} kW</span> en la superficie 
+                        disponible de <span className="text-emerald-400 font-semibold">{roofSize} m²</span> resulta 
+                        altamente viable y rentable.
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -275,7 +422,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
               <div className="space-y-3">
                 <h4 className="text-white font-medium flex items-center space-x-2">
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  <span>Argumentario de Venta (Hormozi)</span>
+                  <span>Puntos Clave para la Venta</span>
                 </h4>
                 
                 <div className="space-y-2">
@@ -283,7 +430,7 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
                     <p className="text-emerald-400 font-medium text-sm mb-1">Objeción: "Es muy caro"</p>
                     <p className="text-slate-300 text-xs">
                       "Entiendo, pero piensa que en {paybackPeriod} años recuperarás toda la inversión. 
-                      Después son {10-paybackPeriod} años de ganancia pura: €{totalSavings10Years-totalInstallationCost.toLocaleString()} libres de impuestos."
+                      Después son {10-paybackPeriod} años de ganancia pura: €{profitAfterROI.toLocaleString()} libres de impuestos."
                     </p>
                   </div>
                   
@@ -311,11 +458,17 @@ export default async function AuditDetailPage({ params }: AuditDetailPageProps) 
           <Card className="bg-slate-900 border-slate-800">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                <button 
+                  onClick={handleDownloadPDF}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
                   <FileText className="h-5 w-5" />
                   <span>Descargar Propuesta PDF</span>
                 </button>
-                <button className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-slate-700 flex items-center justify-center space-x-2">
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-slate-700 flex items-center justify-center space-x-2"
+                >
                   <TrendingUp className="h-5 w-5" />
                   <span>Enviar por WhatsApp</span>
                 </button>

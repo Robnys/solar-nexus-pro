@@ -12,7 +12,17 @@ console.log('URL:', supabaseUrl)
 console.log('API Key length:', supabaseAnonKey.length)
 console.log('API Key starts with eyJ:', supabaseAnonKey.startsWith('eyJ'))
 
-export const supabase = createClient(cleanSupabaseUrl, supabaseAnonKey)
+// Create client with auth configuration
+export const supabase = createClient(cleanSupabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+})
+
+// Create a separate client for middleware (server-side)
+export const supabaseServer = createClient(cleanSupabaseUrl, supabaseAnonKey)
 
 export interface AuditData {
   id?: number
@@ -24,10 +34,19 @@ export interface AuditData {
 
 export async function saveAuditData(data: Omit<AuditData, 'created_at'>) {
   try {
+    // Get current user session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError || !session?.user) {
+      console.error('No authenticated user found:', sessionError)
+      return { success: false, error: 'User not authenticated' }
+    }
+
     const { data: result, error } = await supabase
       .from('audits')
       .insert([{
         ...data,
+        user_id: session.user.id,
         created_at: new Date().toISOString()
       }])
       .select()

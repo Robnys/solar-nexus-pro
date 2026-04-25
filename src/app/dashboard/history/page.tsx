@@ -1,6 +1,6 @@
-'use server'
+'use client'
 
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { 
   Table, 
   TableBody, 
@@ -13,39 +13,63 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, User, Euro, Home, Eye } from 'lucide-react'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-const supabase = createClient(
-  'https://rulombxexbgibwysrqae.supabase.co',
-  'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'
-)
+export default function HistoryPage() {
+  const [audits, setAudits] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
 
-export default async function HistoryPage() {
-  // Server component - instant data loading
-  console.log('=== SUPABASE CONNECTION DEBUG ===')
-  console.log('Supabase URL:', 'https://rulombxexbgibwysrqae.supabase.co')
-  console.log('API Key length:', 'sb_publishable_L-QKhOteksGOfg-sN3IUDA_LzbTsM6u'.length)
-  console.log('Attempting to fetch audits...')
-  
-  const { data: audits, error } = await supabase
-    .from('audits')
-    .select('*')
-    .order('created_at', { ascending: false })
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get user session first
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          router.push('/login')
+          return
+        }
+        setUser(session.user)
 
-  console.log('=== SUPABASE RESPONSE ===')
-  console.log('Data received:', audits)
-  console.log('Error received:', error)
+        // Fetch only user's audits with RLS protection
+        const { data: auditsData, error: fetchError } = await supabase
+          .from('audits')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+
+        if (fetchError) throw fetchError
+        setAudits(auditsData || [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error loading data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Cargando historial...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (error) {
-    console.error('=== DETAILED ERROR ===')
-    console.error('Error message:', error.message)
-    console.error('Error details:', error.details)
-    console.error('Error hint:', error.hint)
-    console.error('Error code:', error.code)
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-500 mb-4">Error al cargar historial</h1>
-          <p className="text-slate-400">Por favor, inténtalo de nuevo más tarde.</p>
+          <p className="text-slate-400">{error}</p>
         </div>
       </div>
     )
