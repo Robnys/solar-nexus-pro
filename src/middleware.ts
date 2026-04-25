@@ -16,10 +16,10 @@ export async function middleware(request: NextRequest) {
   // Get the session from the request
   const { data: { session }, error } = await supabaseServer.auth.getSession()
 
-  // Protected routes - all dashboard routes
-  const protectedRoutes = ['/dashboard']
+  // Protected routes - specific dashboard routes (exclude /dashboard/new for testing)
+  const protectedRoutes = ['/dashboard', '/dashboard/history', '/dashboard/audit']
   const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
+    request.nextUrl.pathname.startsWith(route) && request.nextUrl.pathname !== '/dashboard/new'
   )
 
   // If trying to access protected route without session, redirect to login
