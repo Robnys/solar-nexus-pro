@@ -59,10 +59,10 @@ export default function Home() {
             </Link>
             
             <Link
-              href="/login"
+              href="/dashboard/test"
               className="inline-flex items-center justify-center px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all duration-200 border border-slate-700"
             >
-              Crear Cuenta
+              Test Dashboard Directo
             </Link>
           </div>
           
