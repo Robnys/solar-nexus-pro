@@ -40,7 +40,13 @@ export default function AuditPage() {
         .select()
       
       if (error) {
-        console.error('Supabase error:', error)
+        console.error('=== SUPABASE ERROR DETAILS ===')
+        console.error('Error object:', error)
+        console.error('Error message:', error.message)
+        console.error('Error details:', error.details)
+        console.error('Error hint:', error.hint)
+        console.error('Error code:', error.code)
+        console.error('=============================')
         alert(`Error al guardar auditoría: ${error.message}`)
         return
       }
