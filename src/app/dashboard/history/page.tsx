@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, User, Euro, Home } from 'lucide-react'
+import { Calendar, User, Euro, Home, Eye } from 'lucide-react'
 import Link from 'next/link'
 
 const supabase = createClient(
@@ -144,6 +144,7 @@ export default async function HistoryPage() {
                   <TableHead className="text-slate-400">Superficie</TableHead>
                   <TableHead className="text-slate-400">Fecha</TableHead>
                   <TableHead className="text-slate-400">Estado</TableHead>
+                  <TableHead className="text-slate-400">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,6 +166,15 @@ export default async function HistoryPage() {
                       <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                         Nuevo Lead
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Link 
+                        href={`/dashboard/history/${audit.id}`}
+                        className="inline-flex items-center space-x-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>Ver Análisis</span>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}
