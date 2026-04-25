@@ -51,7 +51,7 @@ export default function LoginPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login?reset=true`,
+        redirectTo: `https://opulent-garbanzo-qv6j5grj75qhqwj-3000.app.github.dev/login?reset=true`,
       })
 
       if (error) throw error
