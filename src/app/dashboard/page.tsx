@@ -21,16 +21,15 @@ import {
 interface Audit {
   id: string
   client_name: string
-  email: string
-  phone: string
-  address: string
-  roof_size: number
   monthly_bill: number
-  roi_years: number
-  status: 'new' | 'contacted' | 'proposal_sent' | 'closed'
+  roof_size: number
   created_at: string
   priority_score: number
-  user_id: string
+  roi_years?: number
+  status?: string
+  email?: string
+  phone?: string
+  address?: string
 }
 
 interface KPICards {
@@ -58,27 +57,34 @@ export default function Dashboard() {
       setLoading(true)
       setError(null)
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuario no autenticado')
-
-      // Fetch audits from Supabase for current user
+      // Fetch all audits from Supabase
       const { data: auditsData, error: auditsError } = await supabase
         .from('audits')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (auditsError) throw auditsError
 
       // Calculate KPIs
       const pipelineValue = auditsData?.reduce((sum, audit) => sum + (audit.monthly_bill * 12 * 0.8 || 0), 0) || 0
-      const hotAudits = auditsData?.filter(audit => audit.roi_years && audit.roi_years <= 6).length || 0
+      
+      // Calculate ROI for each audit if not present
+      const auditsWithROI = auditsData?.map(audit => {
+        if (!audit.roi_years) {
+          // Simple ROI calculation: (system_cost / annual_savings)
+          const systemCost = audit.roof_size * 800 // €800 per m²
+          const annualSavings = audit.monthly_bill * 12 * 0.8
+          audit.roi_years = systemCost / annualSavings
+        }
+        return audit
+      }) || []
+      
+      const hotAudits = auditsWithROI?.filter(audit => audit.roi_years && audit.roi_years <= 6).length || 0
       const closedAudits = auditsData?.filter(audit => audit.status === 'closed').length || 0
       const conversionRate = auditsData?.length > 0 ? (closedAudits / auditsData.length) * 100 : 0
 
       // Sort audits by priority score (ROI-based)
-      const sortedAudits = auditsData?.map(audit => ({
+      const sortedAudits = auditsWithROI?.map(audit => ({
         ...audit,
         priority_score: calculatePriorityScore(audit)
       })).sort((a, b) => b.priority_score - a.priority_score) || []
@@ -86,7 +92,7 @@ export default function Dashboard() {
       setAudits(sortedAudits)
       setKpis({
         pipeline_value: pipelineValue,
-        hot_leads: hotLeads,
+        hot_leads: hotAudits,
         conversion_rate: conversionRate
       })
     } catch (err: any) {
@@ -362,14 +368,14 @@ export default function Dashboard() {
                             <Building className="w-4 h-4 text-slate-400 mr-2" />
                             <div>
                               <div className="text-white font-medium">{audit.client_name}</div>
-                              <div className="text-slate-500 text-sm">{audit.address}</div>
+                              <div className="text-slate-500 text-sm">{audit.address || 'N/A'}</div>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="text-white text-sm">{audit.email}</div>
-                            <div className="text-slate-500 text-sm">{audit.phone}</div>
+                            <div className="text-white text-sm">{audit.email || 'N/A'}</div>
+                            <div className="text-slate-500 text-sm">{audit.phone || 'N/A'}</div>
                           </div>
                         </td>
                         <td className="p-4">
@@ -384,8 +390,8 @@ export default function Dashboard() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(audit.status)}`}>
-                            {getStatusText(audit.status)}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(audit.status || 'new')}`}>
+                            {getStatusText(audit.status || 'new')}
                           </span>
                         </td>
                         <td className="p-4">
