@@ -207,6 +207,13 @@ export default function Dashboard() {
   const positiveROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 12).length // ROI < 12 years = positive
   const conversionRate = auditsWithROI.length > 0 ? (positiveROILeads / auditsWithROI.length) * 100 : 0
 
+  // Define kpis object with safety and default values
+  const kpis = {
+    pipeline_value: pipelineValue || 0,
+    hot_leads: hotAudits || 0,
+    conversion_rate: conversionRate || 0
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 p-8">
