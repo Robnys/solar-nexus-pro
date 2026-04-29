@@ -34,6 +34,8 @@ interface Audit {
   phone?: string
   address?: string
   needs_review?: boolean
+  company?: string
+  estimated_power_kw?: number
 }
 
 interface KPICards {
@@ -44,27 +46,30 @@ interface KPICards {
 
 export default function Dashboard() {
   const [audits, setAudits] = useState<Audit[]>([])
-  const [kpis, setKpis] = useState<KPICards>({
-    pipeline_value: 0,
-    hot_leads: 0,
-    conversion_rate: 0
-  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hotAudits, setHotAudits] = useState(0)
-  const [positiveROILeads, setPositiveROILeads] = useState(0)
-  const [conversionRate, setConversionRate] = useState(0)
 
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // Calculate ROI for each audit (Hormozi Gold Standard)
+  // Calculate ROI for each audit (Hormozi Gold Standard - Realistic)
   const calculateROI = (monthly_bill: number, roof_size: number) => {
-    const annual_savings = monthly_bill * 12 * 0.8 // 80% savings
-    const system_cost = roof_size * 1200 // Real installation cost
+    const annual_savings = monthly_bill * 12 * 0.8 // 80% savings efficiency
+    const system_cost = roof_size * 1200 // Real installation cost per m²
     const roi_years = system_cost / annual_savings
     return roi_years
+  }
+
+  // Calculate estimated power from roof size (simplified: 1m² = 0.15kW)
+  const calculatePower = (roof_size: number) => {
+    return roof_size * 0.15
+  }
+
+  // Calculate lead value (estimated revenue for installer)
+  const calculateLeadValue = (roof_size: number) => {
+    const power_kw = calculatePower(roof_size)
+    return power_kw * 1200 // €1200 per kW installed
   }
 
   // Get ROI badge and color
@@ -97,7 +102,7 @@ export default function Dashboard() {
     if (company && company.trim() !== '') {
       return company
     }
-    return client_name && client_name.trim() !== '' ? client_name : 'Cliente Particular'
+    return client_name && client_name.trim() !== '' ? client_name : 'Residencial'
   }
 
   const getContactDisplay = (client_name: string, email?: string, phone?: string) => {
@@ -105,7 +110,16 @@ export default function Dashboard() {
       return email || phone
     }
     // If no contact info, show client name with user icon
-    return client_name || 'Sin contacto'
+    return client_name || 'Particular'
+  }
+
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0
+    }).format(amount)
   }
 
   const fetchDashboardData = async () => {
@@ -119,42 +133,27 @@ export default function Dashboard() {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (auditsError) throw auditsError
+      if (auditsError) {
+        console.error('Error fetching audits:', auditsError)
+        throw auditsError
+      }
 
-      // Calculate ROI for each audit if not present
-      const auditsWithROI = auditsData?.map((audit: any) => ({
+      // Process audits with ROI calculations
+      const processedAudits = auditsData?.map((audit: any) => ({
         ...audit,
         roi_years: calculateROI(audit.monthly_bill, audit.roof_size),
         roi_badge: getROIBadge(audit.monthly_bill, audit.roof_size),
+        lead_value: calculateLeadValue(audit.roof_size),
         value_25_years: calculate25YearSavings(audit.monthly_bill)
       })) || []
 
-      // Calculate KPIs dynamically from real data (Hormozi Gold Standard)
-      const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
-        return sum + (audit.roof_size * 1200) // Real installation cost
-      }, 0)
-
-      const hotAudits = auditsWithROI.filter((audit: any) => audit.roi_years < 6).length // ROI < 6 years = hot lead
-      const positiveROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 12).length // ROI < 12 years = positive
-      const conversionRate = auditsWithROI.length > 0 ? (positiveROILeads / auditsWithROI.length) * 100 : 0
-
       // Sort audits by priority score (ROI-based)
-      const sortedAudits = auditsWithROI.map((audit: any) => ({
+      const sortedAudits = processedAudits.map((audit: any) => ({
         ...audit,
         priority_score: calculatePriorityScore(audit)
       })).sort((a: any, b: any) => b.priority_score - a.priority_score) || []
 
       setAudits(sortedAudits)
-      setKpis({
-        pipeline_value: pipelineValue,
-        hot_leads: hotAudits,
-        conversion_rate: conversionRate
-      })
-
-      // Also set these as state variables for use in JSX
-      setHotAudits(hotAudits)
-      setPositiveROILeads(positiveROILeads)
-      setConversionRate(conversionRate)
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err)
       setError(err.message || 'Error al cargar los datos')
@@ -163,16 +162,6 @@ export default function Dashboard() {
     }
   }
 
-      
-    
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,6 +188,24 @@ export default function Dashboard() {
     if (score >= 80) return { text: 'MEDIA', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }
     return { text: 'BAJA', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' }
   }
+
+  // Calculate KPIs and processing variables before JSX
+  const auditsWithROI = audits.map((audit: any) => ({
+    ...audit,
+    roi_years: audit.roi_years || calculateROI(audit.monthly_bill, audit.roof_size),
+    roi_badge: audit.roi_badge || getROIBadge(audit.monthly_bill, audit.roof_size),
+    lead_value: audit.lead_value || calculateLeadValue(audit.roof_size),
+    value_25_years: audit.value_25_years || calculate25YearSavings(audit.monthly_bill)
+  }))
+
+  // Calculate KPIs dynamically from real data (Hormozi Gold Standard)
+  const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
+    return sum + (audit.roof_size * 1200) // Real installation cost
+  }, 0)
+
+  const hotAudits = auditsWithROI.filter((audit: any) => audit.roi_years < 6).length // ROI < 6 years = hot lead
+  const positiveROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 12).length // ROI < 12 years = positive
+  const conversionRate = auditsWithROI.length > 0 ? (positiveROILeads / auditsWithROI.length) * 100 : 0
 
   if (loading) {
     return (
@@ -432,9 +439,9 @@ export default function Dashboard() {
                         </td>
                         <td className="p-4">
                           <div className="text-emerald-400 font-bold text-lg">
-                            €{audit.value_25_years.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                            €{audit.lead_value.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
                           </div>
-                          <div className="text-slate-500 text-xs">25 años</div>
+                          <div className="text-slate-500 text-xs">Valor del Lead</div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
