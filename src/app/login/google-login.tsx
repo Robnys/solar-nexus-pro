@@ -28,8 +28,9 @@ export default function GoogleLogin({ onSuccess }: GoogleLoginProps) {
       const result = await signInWithGoogle()
       
       if (result.success) {
-        // El redirección se maneja automáticamente por Supabase
+        // OAuth flow initiated - wait for callback
         setMessage('Redirigiendo a Google...')
+        // Don't redirect immediately - let Supabase handle the OAuth flow
       } else {
         setError(result.error || 'Error al iniciar sesión con Google')
       }

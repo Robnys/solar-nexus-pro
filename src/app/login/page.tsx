@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -20,9 +21,15 @@ export default function LoginPage() {
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        router.push('/dashboard')
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          router.push('/dashboard')
+        }
+      } catch (error) {
+        console.error('Error checking session:', error)
+      } finally {
+        setCheckingSession(false)
       }
     }
     checkSession()
@@ -121,7 +128,14 @@ export default function LoginPage() {
         {/* Primary Google OAuth Login */}
         {!showTraditional && (
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
-            <GoogleLogin onSuccess={() => router.push('/dashboard')} />
+            {checkingSession ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mb-4" />
+                <p className="text-slate-400">Verificando sesión...</p>
+              </div>
+            ) : (
+              <GoogleLogin onSuccess={() => router.push('/dashboard')} />
+            )}
             
             {/* Traditional Login Link */}
             <div className="mt-6 text-center">
@@ -141,111 +155,120 @@ export default function LoginPage() {
         {/* Traditional Login Form */}
         {showTraditional && (
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
-            <form onSubmit={handleTraditionalLogin} className="space-y-6">
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="tu@email.com"
-                    required
-                  />
-                </div>
+            {checkingSession ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mb-4" />
+                <p className="text-slate-400">Verificando sesión...</p>
               </div>
-
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
+            ) : (
+              <>
+                <form onSubmit={handleTraditionalLogin} className="space-y-6">
+                  {/* Email Field */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                      Email
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="tu@email.com"
+                        required
+                      />
+                    </div>
                   </div>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="••••••••"
-                    required
-                  />
+
+                  {/* Password Field */}
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                      Contraseña
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="••••••••"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-red-400 text-sm font-medium">{error}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
                   <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Iniciando sesión...</span>
+                      </>
                     ) : (
-                      <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                      <span>Iniciar Sesión</span>
                     )}
                   </button>
+                </form>
+
+                {/* Password Reset */}
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handlePasswordReset}
+                    disabled={loading || !email}
+                    className="text-slate-400 hover:text-emerald-400 text-sm transition-colors disabled:opacity-50"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
                 </div>
-              </div>
 
-              {/* Error Message */}
-              {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-400 text-sm font-medium">{error}</p>
-                  </div>
+                {/* Back to Google Login */}
+                <div className="mt-6 text-center">
+                  <p className="text-slate-400 text-sm">
+                    ¿Prefieres un acceso más rápido?{' '}
+                    <button
+                      onClick={() => setShowTraditional(false)}
+                      className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
+                    >
+                      Usar Google
+                    </button>
+                  </p>
                 </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Iniciando sesión...</span>
-                  </>
-                ) : (
-                  <span>Iniciar Sesión</span>
-                )}
-              </button>
-            </form>
-
-            {/* Password Reset */}
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={handlePasswordReset}
-                disabled={loading || !email}
-                className="text-slate-400 hover:text-emerald-400 text-sm transition-colors disabled:opacity-50"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </div>
-
-            {/* Back to Google Login */}
-            <div className="mt-6 text-center">
-              <p className="text-slate-400 text-sm">
-                ¿Prefieres un acceso más rápido?{' '}
-                <button
-                  onClick={() => setShowTraditional(false)}
-                  className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
-                >
-                  Usar Google
-                </button>
-              </p>
-            </div>
+              </>
+            )}
           </div>
         )}
 
