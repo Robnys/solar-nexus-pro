@@ -17,13 +17,25 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
+  
+  // Get URL parameters on mount
+  const [mode, setMode] = useState<string | null>(null)
+
+  // Get URL parameters on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const mode = urlParams.get('mode')
+    setMode(mode)
+  }, [])
 
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
+        
+        // Only redirect to dashboard if user has session AND is not trying to register
+        if (session && mode !== 'register') {
           router.push('/dashboard')
         }
       } catch (error) {
@@ -33,7 +45,7 @@ export default function LoginPage() {
       }
     }
     checkSession()
-  }, [router])
+  }, [router, mode])
 
   const handleTraditionalLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,9 +109,11 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">SolarNexus Pro</h1>
           <p className="text-slate-400">
-            {showTraditional 
-              ? 'Inicia sesión con tu email' 
-              : 'Accede rápidamente con Google'
+            {mode === 'register' 
+              ? 'Crea tu cuenta rápidamente con Google'
+              : showTraditional 
+                ? 'Inicia sesión con tu email' 
+                : 'Accede rápidamente con Google'
             }
           </p>
         </div>

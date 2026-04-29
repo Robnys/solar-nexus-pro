@@ -59,7 +59,7 @@ export default function Home() {
             </Link>
             
             <Link
-              href="/login"
+              href="/login?mode=register"
               className="inline-flex items-center justify-center px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all duration-200 border border-slate-700"
             >
               Crear Cuenta
