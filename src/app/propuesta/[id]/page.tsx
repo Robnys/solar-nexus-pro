@@ -27,18 +27,31 @@ interface Audit {
   created_at: string
 }
 
+interface UserSettings {
+  id: string
+  user_id: string
+  company_name: string
+  whatsapp: string
+  logo_url: string
+  price_per_kw: number
+  created_at: string
+  updated_at: string
+}
+
 export default function PublicProposalPage({ params }: { params: { id: string } }) {
   const [audit, setAudit] = useState<Audit | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lossCounter, setLossCounter] = useState(0)
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
 
   // Real engineering calculations
   const calculateROI = (monthly_bill: number, roof_size: number) => {
+    const pricePerKw = userSettings?.price_per_kw || 1100
     const potencia_kW = roof_size * 0.15
     const produccion_anual = potencia_kW * 1500
     const ahorro_real = produccion_anual * 0.25
-    const coste_instalacion = potencia_kW * 1100
+    const coste_instalacion = potencia_kW * pricePerKw
     
     const ahorro_esperado = monthly_bill * 12 * 0.75
     const roi_anios = coste_instalacion / ahorro_esperado
@@ -56,39 +69,65 @@ export default function PublicProposalPage({ params }: { params: { id: string } 
   }
 
   useEffect(() => {
-    const fetchAudit = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    fetchAudit()
+    fetchUserSettings()
+  }, [params.id])
 
-        const { data: auditData, error: fetchError } = await supabase
-          .from('audits')
+  const fetchAudit = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data: auditData, error: fetchError } = await supabase
+        .from('audits')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (fetchError) {
+        setError('Propuesta no encontrada')
+        return
+      }
+
+      if (!auditData) {
+        setError('Propuesta no encontrada')
+        return
+      }
+
+      setAudit(auditData)
+    } catch (err: any) {
+      setError('Error al cargar la propuesta')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchUserSettings = async () => {
+    try {
+      // Get user_id from audit first, then fetch settings
+      if (!params.id) return
+      
+      const { data: auditData } = await supabase
+        .from('audits')
+        .select('user_id')
+        .eq('id', params.id)
+        .single()
+
+      if (auditData?.user_id) {
+        const { data: settings, error } = await supabase
+          .from('user_settings')
           .select('*')
-          .eq('id', params.id)
+          .eq('user_id', auditData.user_id)
           .single()
 
-        if (fetchError) {
-          setError('Propuesta no encontrada')
-          return
+        if (settings && !error) {
+          setUserSettings(settings)
         }
-
-        if (!auditData) {
-          setError('Propuesta no encontrada')
-          return
-        }
-
-        setAudit(auditData)
-      } catch (err: any) {
-        setError('Error al cargar la propuesta')
-      } finally {
-        setLoading(false)
       }
+    } catch (err) {
+      // Silently fail for settings
     }
-
-    if (params.id) {
-      fetchAudit()
-    }
-  }, [params.id])
+  }
 
   // Animated loss counter (Hormozi fear of loss principle)
   useEffect(() => {

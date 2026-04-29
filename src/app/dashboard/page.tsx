@@ -48,22 +48,55 @@ interface KPICards {
   conversion_rate: number
 }
 
+interface UserSettings {
+  id: string
+  user_id: string
+  company_name: string
+  whatsapp: string
+  logo_url: string
+  price_per_kw: number
+  created_at: string
+  updated_at: string
+}
+
 export default function Dashboard() {
   const router = useRouter()
   const [audits, setAudits] = useState<Audit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
+    fetchUserSettings()
   }, [])
+
+  const fetchUserSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: settings, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (settings && !error) {
+        setUserSettings(settings)
+      }
+    } catch (err) {
+      // Silently fail for settings
+    }
+  }
 
   // Calculate ROI for each audit (CTO SaaS Standard)
   const calculateROI = (monthly_bill: number, roof_size: number) => {
+    const pricePerKw = userSettings?.price_per_kw || 1100
     const potencia_kW = roof_size * 0.15 // 150W por m2 (paneles estándar)
     const produccion_anual = potencia_kW * 1500 // horas sol media España
     const ahorro_real = produccion_anual * 0.25 // €0.25/kWh precio medio
-    const coste_instalacion = potencia_kW * 1100 // €1100 por kW
+    const coste_instalacion = potencia_kW * pricePerKw
     
     // Validación de datos
     const ahorro_esperado = monthly_bill * 12 * 0.75
@@ -108,10 +141,12 @@ export default function Dashboard() {
 
   // Calculate priority score based on ROI
   const calculatePriorityScore = (audit: Audit) => {
-    const roiResult = calculateROI(audit.monthly_bill, audit.roof_size)
+    const monthlyBill = safeNumber(audit.monthly_bill)
+    const roofSize = safeNumber(audit.roof_size)
+    const roiResult = calculateROI(monthlyBill, roofSize)
     const roi = roiResult.roi
-    const monthly_bill_score = audit.monthly_bill > 100 ? 30 : 10
-    const roof_size_score = audit.roof_size > 50 ? 20 : 10
+    const monthly_bill_score = monthlyBill > 100 ? 30 : 10
+    const roof_size_score = roofSize > 50 ? 20 : 10
     return Math.min(100, monthly_bill_score + roof_size_score + (roi < 10 ? 40 : 0))
   }
 
@@ -131,13 +166,20 @@ export default function Dashboard() {
     return client_name || 'Particular'
   }
 
-  // Format currency for display
-  const formatCurrency = (amount: number) => {
+  // Safe price formatting helper function
+  const formatPrice = (amount: any): string => {
+    const num = Number(amount) || 0
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 0
-    }).format(amount)
+    }).format(num)
+  }
+
+  // Safe number conversion helper
+  const safeNumber = (value: any, defaultValue: number = 0): number => {
+    const num = Number(value)
+    return isNaN(num) || !isFinite(num) ? defaultValue : num
   }
 
   const fetchDashboardData = async () => {
@@ -152,18 +194,23 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
 
       if (auditsError) {
-        console.error('Error fetching audits:', auditsError)
         throw auditsError
       }
 
       // Process audits with ROI calculations
-      const processedAudits = auditsData?.map((audit: any) => ({
-        ...audit,
-        roi_years: calculateROI(audit.monthly_bill, audit.roof_size),
-        roi_badge: getROIBadge(audit.monthly_bill, audit.roof_size),
-        lead_value: calculateLeadValue(audit.roof_size),
-        value_25_years: calculate25YearSavings(audit.monthly_bill)
-      })) || []
+      const processedAudits = auditsData?.map((audit: any) => {
+        const monthlyBill = safeNumber(audit.monthly_bill)
+        const roofSize = safeNumber(audit.roof_size)
+        return {
+          ...audit,
+          monthly_bill: monthlyBill,
+          roof_size: roofSize,
+          roi_years: calculateROI(monthlyBill, roofSize),
+          roi_badge: getROIBadge(monthlyBill, roofSize),
+          lead_value: calculateLeadValue(roofSize),
+          value_25_years: calculate25YearSavings(monthlyBill)
+        }
+      }) || []
 
       // Sort audits by priority score (ROI-based)
       const sortedAudits = processedAudits.map((audit: any) => ({
@@ -173,7 +220,6 @@ export default function Dashboard() {
 
       setAudits(sortedAudits)
     } catch (err: any) {
-      console.error('Error fetching dashboard data:', err)
       setError(err.message || 'Error al cargar los datos')
     } finally {
       setLoading(false)
@@ -209,36 +255,42 @@ export default function Dashboard() {
 
   // Calculate KPIs and processing variables before JSX
   const auditsWithROI = audits.map((audit: any) => {
-    const roiResult = calculateROI(audit.monthly_bill, audit.roof_size)
-    const potencia_kW = audit.roof_size * 0.15
-    const coste_instalacion = potencia_kW * 1100
+    const monthlyBill = safeNumber(audit.monthly_bill)
+    const roofSize = safeNumber(audit.roof_size)
+    const roiResult = calculateROI(monthlyBill, roofSize)
+    const pricePerKw = userSettings?.price_per_kw || 1100
+    const potencia_kW = roofSize * 0.15
+    const coste_instalacion = potencia_kW * pricePerKw
     const comision_estimada = coste_instalacion * 0.10 // 10% comisión para el instalador
     
     return {
       ...audit,
-      roi_years: audit.roi_years || roiResult.roi,
+      monthly_bill: monthlyBill,
+      roof_size: roofSize,
+      roi_years: safeNumber(audit.roi_years, roiResult.roi),
       roi_warning: roiResult.warning,
-      roi_badge: audit.roi_badge || getROIBadge(audit.monthly_bill, audit.roof_size),
-      lead_value: audit.lead_value || calculateLeadValue(audit.roof_size),
-      comision_estimada: audit.comision_estimada || comision_estimada,
-      value_25_years: audit.value_25_years || calculate25YearSavings(audit.monthly_bill)
+      roi_badge: audit.roi_badge || getROIBadge(monthlyBill, roofSize),
+      lead_value: safeNumber(audit.lead_value, calculateLeadValue(roofSize)),
+      comision_estimada: safeNumber(audit.comision_estimada, comision_estimada),
+      value_25_years: safeNumber(audit.value_25_years, calculate25YearSavings(monthlyBill))
     }
   })
 
   // Calculate KPIs dynamically from real data (Hormozi Gold Standard)
+  const pricePerKw = userSettings?.price_per_kw || 1100
   const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
-    return sum + (audit.roof_size * 1200) // Real installation cost
+    return sum + (safeNumber(audit.roof_size) * 0.15 * pricePerKw) // Real installation cost
   }, 0)
 
-  const hotAudits = auditsWithROI.filter((audit: any) => audit.roi_years < 6).length // ROI < 6 years = hot lead
-  const positiveROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 12).length // ROI < 12 years = positive
+  const hotAudits = auditsWithROI.filter((audit: any) => safeNumber(audit.roi_years) < 6).length // ROI < 6 years = hot lead
+  const positiveROILeads = auditsWithROI.filter((audit: any) => safeNumber(audit.roi_years) < 12).length // ROI < 12 years = positive
   const conversionRate = auditsWithROI.length > 0 ? (positiveROILeads / auditsWithROI.length) * 100 : 0
 
   // Define kpis object with safety and default values
   const kpis = {
-    pipeline_value: pipelineValue || 0,
-    hot_leads: hotAudits || 0,
-    conversion_rate: conversionRate || 0
+    pipeline_value: safeNumber(pipelineValue, 0),
+    hot_leads: safeNumber(hotAudits, 0),
+    conversion_rate: safeNumber(conversionRate, 0)
   }
 
   // Handle opening audit details
@@ -247,7 +299,7 @@ export default function Dashboard() {
   }
 
   // Calculate potential percentage (leads with ROI < 10 years)
-  const goodROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 10).length
+  const goodROILeads = auditsWithROI.filter((audit: any) => safeNumber(audit.roi_years) < 10).length
   const potentialPercentage = auditsWithROI.length > 0 ? (goodROILeads / auditsWithROI.length) * 100 : 0
 
   if (loading) {
@@ -327,7 +379,9 @@ export default function Dashboard() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2">SolarNexus Pro</h1>
+                <h1 className="text-4xl font-bold text-white mb-2">
+                  {userSettings?.company_name || 'SolarNexus Pro'}
+                </h1>
                 <p className="text-slate-400">Panel de Control de Instaladores Solares</p>
               </div>
               <div className="flex items-center space-x-4">
@@ -338,11 +392,12 @@ export default function Dashboard() {
                   <Target className="w-5 h-5 mr-2" />
                   Nuevo Análisis Solar
                 </button>
-                <button className="p-2 text-slate-400 hover:text-white transition-colors">
-                  <Calendar className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-slate-400 hover:text-white transition-colors">
-                  <MoreVertical className="w-5 h-5" />
+                <button 
+                  onClick={() => router.push('/settings')}
+                  className="inline-flex items-center px-4 py-2 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 rounded-lg transition-colors duration-200"
+                >
+                  <Building className="w-4 h-4 mr-2" />
+                  Configuración
                 </button>
               </div>
             </div>
@@ -362,7 +417,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-white mb-1">
-                {formatCurrency(kpis.pipeline_value)}
+                {formatPrice(kpis.pipeline_value)}
               </div>
               <div className="text-slate-400 text-sm">Valor del Pipeline</div>
             </div>
@@ -396,7 +451,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-white mb-1">
-                {conversionRate.toFixed(1)}%
+                {safeNumber(conversionRate).toFixed(1)}%
               </div>
               <div className="text-slate-400 text-sm">Tasa de Conversión ROI Positivo</div>
             </div>
@@ -409,7 +464,7 @@ export default function Dashboard() {
                 <Target className="w-5 h-5 mr-2 text-emerald-400" />
                 Potencial de Conversión
               </h3>
-              <span className="text-emerald-400 font-bold">{potentialPercentage.toFixed(1)}%</span>
+              <span className="text-emerald-400 font-bold">{safeNumber(potentialPercentage).toFixed(1)}%</span>
             </div>
             <div className="w-full bg-slate-800/50 rounded-full h-4 overflow-hidden">
               <div 
@@ -459,9 +514,33 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {audits.map((audit) => {
-                    const priority = getPriorityBadge(audit.priority_score)
-                    return (
+                  {audits.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center">
+                        <div className="max-w-md mx-auto">
+                          <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Target className="w-8 h-8 text-emerald-400" />
+                          </div>
+                          <h3 className="text-xl font-semibold text-white mb-2">
+                            Bienvenido a SolarNexus Pro
+                          </h3>
+                          <p className="text-slate-400 mb-6">
+                            Crea tu primera auditoría para ver el potencial de ingresos y empezar a generar leads solares de alta conversión.
+                          </p>
+                          <button
+                            onClick={() => router.push('/audit-form')}
+                            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all duration-200 transform hover:scale-105 mx-auto"
+                          >
+                            <Target className="w-5 h-5 mr-2" />
+                            Crear Primera Auditoría
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    audits.map((audit) => {
+                      const priority = getPriorityBadge(audit.priority_score)
+                      return (
                       <tr key={audit.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center">
@@ -489,10 +568,10 @@ export default function Dashboard() {
                         </td>
                         <td className="p-4">
                           <div className="text-yellow-400 font-bold text-lg">
-                            €{audit.comision_estimada?.toLocaleString('es-ES', { maximumFractionDigits: 0 }) || audit.lead_value?.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                            {formatPrice(safeNumber(audit.comision_estimada) || safeNumber(audit.lead_value))}
                           </div>
                           <div className="text-slate-500 text-xs">Comisión (10%)</div>
-                          {audit.roi_years < 5 && (
+                          {safeNumber(audit.roi_years) < 5 && (
                             <div className="flex items-center mt-1 text-orange-400">
                               <span className="text-sm mr-1">🔥</span>
                               <span className="text-xs font-medium">Cierre Inmediato</span>
@@ -503,7 +582,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2">
                             <div className="flex items-center">
                               <Clock className="w-4 h-4 text-slate-400 mr-1" />
-                              <span className="text-white">{audit.roi_years?.toFixed(1)} años</span>
+                              <span className="text-white">{safeNumber(audit.roi_years).toFixed(1)} años</span>
                             </div>
                             {audit.roi_badge && (
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${audit.roi_badge.color}`}>
@@ -533,18 +612,12 @@ export default function Dashboard() {
                         </td>
                       </tr>
                     )
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
-
-            {audits.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No hay auditorías aún</h3>
-                <p className="text-slate-400">Las auditorías aparecerán aquí cuando las generes</p>
-              </div>
-            )}
+          </div>
           </div>
 
           {/* Herramientas de Cierre - Bonus Module */}

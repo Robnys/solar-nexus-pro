@@ -27,18 +27,31 @@ interface Audit {
   created_at: string
 }
 
+interface UserSettings {
+  id: string
+  user_id: string
+  company_name: string
+  whatsapp: string
+  logo_url: string
+  price_per_kw: number
+  created_at: string
+  updated_at: string
+}
+
 export default function AuditDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [audit, setAudit] = useState<Audit | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
 
   // Real engineering calculations
   const calculateROI = (monthly_bill: number, roof_size: number) => {
+    const pricePerKw = userSettings?.price_per_kw || 1100
     const potencia_kW = roof_size * 0.15
     const produccion_anual = potencia_kW * 1500
     const ahorro_real = produccion_anual * 0.25
-    const coste_instalacion = potencia_kW * 1100
+    const coste_instalacion = potencia_kW * pricePerKw
     
     const ahorro_esperado = monthly_bill * 12 * 0.75
     const roi_anios = coste_instalacion / ahorro_esperado
@@ -62,41 +75,57 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
   }
 
   useEffect(() => {
-    const fetchAudit = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const { data: auditData, error: fetchError } = await supabase
-          .from('audits')
-          .select('*')
-          .eq('id', params.id)
-          .single()
-
-        if (fetchError) {
-          console.error('Error fetching audit:', fetchError)
-          setError('Auditoría no encontrada')
-          return
-        }
-
-        if (!auditData) {
-          setError('Auditoría no encontrada')
-          return
-        }
-
-        setAudit(auditData)
-      } catch (err: any) {
-        console.error('Error:', err)
-        setError('Error al cargar la auditoría')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (params.id) {
-      fetchAudit()
-    }
+    fetchAudit()
+    fetchUserSettings()
   }, [params.id])
+
+  const fetchAudit = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data: auditData, error: fetchError } = await supabase
+        .from('audits')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (fetchError) {
+        setError('Auditoría no encontrada')
+        return
+      }
+
+      if (!auditData) {
+        setError('Auditoría no encontrada')
+        return
+      }
+
+      setAudit(auditData)
+    } catch (err: any) {
+      setError('Error al cargar la auditoría')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchUserSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: settings, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (settings && !error) {
+        setUserSettings(settings)
+      }
+    } catch (err) {
+      // Silently fail for settings
+    }
+  }
 
   const handleWhatsAppClick = () => {
     if (!audit) return
@@ -104,7 +133,8 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
     const calculations = calculateROI(audit.monthly_bill, audit.roof_size)
     const co2_reduction = calculateCO2Reduction(audit.roof_size)
     
-    const message = `Hola ${audit.client_name}, soy SolarNexus Pro. He analizado tu tejado de ${audit.roof_size}m2 y tengo buenas noticias: puedes ahorrar ${calculations.ahorro_esperado.toLocaleString('es-ES', { maximumFractionDigits: 0 })}€ al año en luz. La instalación se paga sola en ${calculations.roi_anios.toFixed(1)} años. ¿Te envío el estudio completo?`
+    const companyName = userSettings?.company_name || 'SolarNexus Pro'
+    const message = `Hola ${audit.client_name}, soy ${companyName}. He analizado tu tejado de ${audit.roof_size}m2 y tengo buenas noticias: puedes ahorrar ${calculations.ahorro_esperado.toLocaleString('es-ES', { maximumFractionDigits: 0 })}€ al año en luz. La instalación se paga sola en ${calculations.roi_anios.toFixed(1)} años. ¿Te envío el estudio completo?`
     
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
