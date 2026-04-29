@@ -618,7 +618,6 @@ export default function Dashboard() {
               </table>
             </div>
           </div>
-          </div>
 
           {/* Herramientas de Cierre - Bonus Module */}
           <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 mb-8">
