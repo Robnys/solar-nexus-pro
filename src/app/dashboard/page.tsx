@@ -51,23 +51,37 @@ export default function Dashboard() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hotAudits, setHotAudits] = useState(0)
+  const [positiveROILeads, setPositiveROILeads] = useState(0)
+  const [conversionRate, setConversionRate] = useState(0)
 
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // Calculate ROI for each audit
+  // Calculate ROI for each audit (Hormozi Gold Standard)
   const calculateROI = (monthly_bill: number, roof_size: number) => {
-    const annual_savings = monthly_bill * 12 * 0.8
-    const system_cost = roof_size * 1500 // Correct installation cost
+    const annual_savings = monthly_bill * 12 * 0.8 // 80% savings
+    const system_cost = roof_size * 1200 // Real installation cost
     const roi_years = system_cost / annual_savings
     return roi_years
   }
 
-  // Check if ROI needs review
-  const needsROIReview = (monthly_bill: number, roof_size: number) => {
+  // Get ROI badge and color
+  const getROIBadge = (monthly_bill: number, roof_size: number) => {
+    const roi = calculateROI(monthly_bill, roof_size)
+    if (roi > 12) {
+      return { text: 'Revisar', color: 'bg-orange-500 text-white' }
+    } else if (roi < 6) {
+      return { text: 'OPORTUNIDAD', color: 'bg-green-500 text-white' }
+    }
+    return null
+  }
+
+  // Calculate 25-year total savings (emotional big numbers)
+  const calculate25YearSavings = (monthly_bill: number) => {
     const annual_savings = monthly_bill * 12 * 0.8
-    return annual_savings < 500 // Low annual savings threshold
+    return annual_savings * 25
   }
 
   // Calculate priority score based on ROI
@@ -78,16 +92,20 @@ export default function Dashboard() {
     return Math.min(100, monthly_bill_score + roof_size_score + (roi < 10 ? 40 : 0))
   }
 
-  // Clean data display functions
-  const getDisplayName = (client_name: string) => {
+  // Clean data display functions (Hormozi Gold Standard)
+  const getDisplayName = (client_name: string, company?: string) => {
+    if (company && company.trim() !== '') {
+      return company
+    }
     return client_name && client_name.trim() !== '' ? client_name : 'Cliente Particular'
   }
 
-  const getContactDisplay = (email?: string, phone?: string) => {
+  const getContactDisplay = (client_name: string, email?: string, phone?: string) => {
     if (email || phone) {
       return email || phone
     }
-    return null
+    // If no contact info, show client name with user icon
+    return client_name || 'Sin contacto'
   }
 
   const fetchDashboardData = async () => {
@@ -107,16 +125,18 @@ export default function Dashboard() {
       const auditsWithROI = auditsData?.map((audit: any) => ({
         ...audit,
         roi_years: calculateROI(audit.monthly_bill, audit.roof_size),
-        needs_review: needsROIReview(audit.monthly_bill, audit.roof_size)
+        roi_badge: getROIBadge(audit.monthly_bill, audit.roof_size),
+        value_25_years: calculate25YearSavings(audit.monthly_bill)
       })) || []
 
-      // Calculate KPIs dynamically from real data
+      // Calculate KPIs dynamically from real data (Hormozi Gold Standard)
       const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
-        return sum + (audit.roof_size * 1500)
+        return sum + (audit.roof_size * 1200) // Real installation cost
       }, 0)
 
-      const hotAudits = auditsWithROI.filter((audit: any) => audit.priority_score > 70).length
-      const conversionRate = auditsWithROI.length > 0 ? (hotAudits / auditsWithROI.length) * 100 : 0
+      const hotAudits = auditsWithROI.filter((audit: any) => audit.roi_years < 6).length // ROI < 6 years = hot lead
+      const positiveROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 12).length // ROI < 12 years = positive
+      const conversionRate = auditsWithROI.length > 0 ? (positiveROILeads / auditsWithROI.length) * 100 : 0
 
       // Sort audits by priority score (ROI-based)
       const sortedAudits = auditsWithROI.map((audit: any) => ({
@@ -130,6 +150,11 @@ export default function Dashboard() {
         hot_leads: hotAudits,
         conversion_rate: conversionRate
       })
+
+      // Also set these as state variables for use in JSX
+      setHotAudits(hotAudits)
+      setPositiveROILeads(positiveROILeads)
+      setConversionRate(conversionRate)
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err)
       setError(err.message || 'Error al cargar los datos')
@@ -297,9 +322,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-white mb-1">
-                {kpis.hot_leads}
+                {hotAudits}
               </div>
-              <div className="text-slate-400 text-sm">Leads Calientes (ROI ≤ 6 años)</div>
+              <div className="text-slate-400 text-sm">Oportunidades Directas (ROI &lt; 6 años)</div>
             </div>
 
             {/* Conversion Rate */}
@@ -314,30 +339,38 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-white mb-1">
-                {kpis.conversion_rate.toFixed(1)}%
+                {conversionRate.toFixed(1)}%
               </div>
-              <div className="text-slate-400 text-sm">Tasa de Conversión</div>
+              <div className="text-slate-400 text-sm">Tasa de Conversión ROI Positivo</div>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
+          {/* Progress Bar - Emerald Gradient based on positive ROI */}
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Potencial de Conversión</h3>
-              <span className="text-emerald-400 font-medium">{kpis.conversion_rate.toFixed(1)}%</span>
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <Target className="w-5 h-5 mr-2 text-emerald-400" />
+                Potencial de Conversión
+              </h3>
+              <span className="text-emerald-400 font-bold">{conversionRate.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-3">
+            <div className="w-full bg-slate-800/50 rounded-full h-4 overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(kpis.conversion_rate, 100)}%` }}
-              ></div>
+                className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 h-4 rounded-full transition-all duration-700 ease-out shadow-lg shadow-emerald-500/25"
+                style={{ width: `${Math.min(conversionRate, 100)}%` }}
+              >
+                <div className="h-full bg-white/20 animate-pulse"></div>
+              </div>
             </div>
-            <div className="flex justify-between mt-2">
+            <div className="flex justify-between mt-3">
               <span className="text-xs text-slate-500">0%</span>
               <span className="text-xs text-slate-500">25%</span>
               <span className="text-xs text-slate-500">50%</span>
               <span className="text-xs text-slate-500">75%</span>
               <span className="text-xs text-slate-500">100%</span>
+            </div>
+            <div className="mt-3 text-sm text-slate-400">
+              {positiveROILeads} de {auditsWithROI.length} leads con ROI positivo (&lt;12 años)
             </div>
           </div>
 
@@ -377,26 +410,43 @@ export default function Dashboard() {
                           <div className="flex items-center">
                             <Building className="w-4 h-4 text-slate-400 mr-2" />
                             <div>
-                              <div className="text-white font-medium">{audit.client_name}</div>
-                              <div className="text-slate-500 text-sm">{audit.address || 'N/A'}</div>
+                              <div className="text-white font-medium">{getDisplayName(audit.client_name, audit.company)}</div>
+                              <div className="text-slate-500 text-sm">{audit.address || 'Sin dirección'}</div>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <div>
-                            <div className="text-white text-sm">{audit.email || 'N/A'}</div>
-                            <div className="text-slate-500 text-sm">{audit.phone || 'N/A'}</div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-emerald-400 font-medium">
-                            €{(audit.monthly_bill * 12 * 0.8).toLocaleString('es-ES')}
-                          </div>
-                        </td>
-                        <td className="p-4">
                           <div className="flex items-center">
-                            <Clock className="w-4 h-4 text-slate-400 mr-1" />
-                            <span className="text-white">{audit.roi_years} años</span>
+                            {audit.email || audit.phone ? (
+                              <div>
+                                <div className="text-white text-sm">{audit.email || audit.phone}</div>
+                                <div className="text-slate-500 text-sm">{audit.phone && audit.email ? audit.phone : ''}</div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-slate-400">
+                                <UserX className="w-4 h-4 mr-2" />
+                                <span className="text-sm">{audit.client_name || 'Sin contacto'}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-emerald-400 font-bold text-lg">
+                            €{audit.value_25_years.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                          </div>
+                          <div className="text-slate-500 text-xs">25 años</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 text-slate-400 mr-1" />
+                              <span className="text-white">{audit.roi_years?.toFixed(1)} años</span>
+                            </div>
+                            {audit.roi_badge && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${audit.roi_badge.color}`}>
+                                {audit.roi_badge.text}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="p-4">
@@ -410,8 +460,9 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <button className="text-emerald-400 hover:text-emerald-300 font-medium text-sm transition-colors">
-                            Ver detalles
+                          <button className="inline-flex items-center px-3 py-2 border border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg font-medium text-sm transition-all duration-200">
+                            <ArrowRight className="w-4 h-4 mr-2" />
+                            Abrir Auditoría
                           </button>
                         </td>
                       </tr>
