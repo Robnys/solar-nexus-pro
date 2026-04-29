@@ -18,18 +18,19 @@ import {
   MoreVertical
 } from 'lucide-react'
 
-interface Lead {
+interface Audit {
   id: string
-  company_name: string
+  client_name: string
   email: string
   phone: string
   address: string
   roof_size: number
-  estimated_savings: number
+  monthly_bill: number
   roi_years: number
   status: 'new' | 'contacted' | 'proposal_sent' | 'closed'
   created_at: string
   priority_score: number
+  user_id: string
 }
 
 interface KPICards {
@@ -39,7 +40,7 @@ interface KPICards {
 }
 
 export default function Dashboard() {
-  const [leads, setLeads] = useState<Lead[]>([])
+  const [audits, setAudits] = useState<Audit[]>([])
   const [kpis, setKpis] = useState<KPICards>({
     pipeline_value: 0,
     hot_leads: 0,
@@ -57,27 +58,32 @@ export default function Dashboard() {
       setLoading(true)
       setError(null)
 
-      // Fetch leads from Supabase
-      const { data: leadsData, error: leadsError } = await supabase
-        .from('leads')
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuario no autenticado')
+
+      // Fetch audits from Supabase for current user
+      const { data: auditsData, error: auditsError } = await supabase
+        .from('audits')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (leadsError) throw leadsError
+      if (auditsError) throw auditsError
 
       // Calculate KPIs
-      const pipelineValue = leadsData?.reduce((sum, lead) => sum + (lead.estimated_savings || 0), 0) || 0
-      const hotLeads = leadsData?.filter(lead => lead.roi_years && lead.roi_years <= 6).length || 0
-      const closedLeads = leadsData?.filter(lead => lead.status === 'closed').length || 0
-      const conversionRate = leadsData?.length > 0 ? (closedLeads / leadsData.length) * 100 : 0
+      const pipelineValue = auditsData?.reduce((sum, audit) => sum + (audit.monthly_bill * 12 * 0.8 || 0), 0) || 0
+      const hotAudits = auditsData?.filter(audit => audit.roi_years && audit.roi_years <= 6).length || 0
+      const closedAudits = auditsData?.filter(audit => audit.status === 'closed').length || 0
+      const conversionRate = auditsData?.length > 0 ? (closedAudits / auditsData.length) * 100 : 0
 
-      // Sort leads by priority score (ROI-based)
-      const sortedLeads = leadsData?.map(lead => ({
-        ...lead,
-        priority_score: calculatePriorityScore(lead)
+      // Sort audits by priority score (ROI-based)
+      const sortedAudits = auditsData?.map(audit => ({
+        ...audit,
+        priority_score: calculatePriorityScore(audit)
       })).sort((a, b) => b.priority_score - a.priority_score) || []
 
-      setLeads(sortedLeads)
+      setAudits(sortedAudits)
       setKpis({
         pipeline_value: pipelineValue,
         hot_leads: hotLeads,
@@ -91,26 +97,27 @@ export default function Dashboard() {
     }
   }
 
-  const calculatePriorityScore = (lead: Lead): number => {
+  const calculatePriorityScore = (audit: Audit): number => {
     let score = 0
     
     // ROI priority (higher score for better ROI)
-    if (lead.roi_years && lead.roi_years <= 3) score += 100
-    else if (lead.roi_years && lead.roi_years <= 6) score += 60
-    else if (lead.roi_years && lead.roi_years <= 10) score += 30
+    if (audit.roi_years && audit.roi_years <= 3) score += 100
+    else if (audit.roi_years && audit.roi_years <= 6) score += 60
+    else if (audit.roi_years && audit.roi_years <= 10) score += 30
     
-    // Estimated savings priority
-    if (lead.estimated_savings >= 50000) score += 50
-    else if (lead.estimated_savings >= 30000) score += 30
-    else if (lead.estimated_savings >= 15000) score += 15
+    // Monthly bill priority (higher bills = more savings potential)
+    const annualSavings = audit.monthly_bill * 12 * 0.8
+    if (annualSavings >= 5000) score += 50
+    else if (annualSavings >= 3000) score += 30
+    else if (annualSavings >= 1500) score += 15
     
-    // Status priority (new leads get higher score)
-    if (lead.status === 'new') score += 40
-    else if (lead.status === 'contacted') score += 20
-    else if (lead.status === 'proposal_sent') score += 10
+    // Status priority (new audits get higher score)
+    if (audit.status === 'new') score += 40
+    else if (audit.status === 'contacted') score += 20
+    else if (audit.status === 'proposal_sent') score += 10
     
     // Recency priority (more recent = higher score)
-    const daysSinceCreation = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24))
+    const daysSinceCreation = Math.floor((Date.now() - new Date(audit.created_at).getTime()) / (1000 * 60 * 60 * 24))
     if (daysSinceCreation <= 7) score += 30
     else if (daysSinceCreation <= 30) score += 15
     
@@ -346,39 +353,39 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.map((lead) => {
-                    const priority = getPriorityBadge(lead.priority_score)
+                  {audits.map((audit) => {
+                    const priority = getPriorityBadge(audit.priority_score)
                     return (
-                      <tr key={lead.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                      <tr key={audit.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center">
                             <Building className="w-4 h-4 text-slate-400 mr-2" />
                             <div>
-                              <div className="text-white font-medium">{lead.company_name}</div>
-                              <div className="text-slate-500 text-sm">{lead.address}</div>
+                              <div className="text-white font-medium">{audit.client_name}</div>
+                              <div className="text-slate-500 text-sm">{audit.address}</div>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="text-white text-sm">{lead.email}</div>
-                            <div className="text-slate-500 text-sm">{lead.phone}</div>
+                            <div className="text-white text-sm">{audit.email}</div>
+                            <div className="text-slate-500 text-sm">{audit.phone}</div>
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="text-emerald-400 font-medium">
-                            {formatCurrency(lead.estimated_savings)}
+                            €{(audit.monthly_bill * 12 * 0.8).toLocaleString('es-ES')}
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center">
                             <Clock className="w-4 h-4 text-slate-400 mr-1" />
-                            <span className="text-white">{lead.roi_years} años</span>
+                            <span className="text-white">{audit.roi_years} años</span>
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(lead.status)}`}>
-                            {getStatusText(lead.status)}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(audit.status)}`}>
+                            {getStatusText(audit.status)}
                           </span>
                         </td>
                         <td className="p-4">
@@ -398,11 +405,11 @@ export default function Dashboard() {
               </table>
             </div>
 
-            {leads.length === 0 && (
+            {audits.length === 0 && (
               <div className="text-center py-12">
                 <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No hay leads aún</h3>
-                <p className="text-slate-400">Los leads aparecerán aquí cuando los generes</p>
+                <h3 className="text-xl font-semibold text-white mb-2">No hay auditorías aún</h3>
+                <p className="text-slate-400">Las auditorías aparecerán aquí cuando las generes</p>
               </div>
             )}
           </div>
