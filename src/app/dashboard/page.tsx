@@ -15,7 +15,10 @@ import {
   Calendar,
   Target,
   ArrowUpRight,
-  MoreVertical
+  MoreVertical,
+  Eye,
+  ArrowRight,
+  UserX
 } from 'lucide-react'
 
 interface Audit {
@@ -30,6 +33,7 @@ interface Audit {
   email?: string
   phone?: string
   address?: string
+  needs_review?: boolean
 }
 
 interface KPICards {
@@ -52,6 +56,40 @@ export default function Dashboard() {
     fetchDashboardData()
   }, [])
 
+  // Calculate ROI for each audit
+  const calculateROI = (monthly_bill: number, roof_size: number) => {
+    const annual_savings = monthly_bill * 12 * 0.8
+    const system_cost = roof_size * 1500 // Correct installation cost
+    const roi_years = system_cost / annual_savings
+    return roi_years
+  }
+
+  // Check if ROI needs review
+  const needsROIReview = (monthly_bill: number, roof_size: number) => {
+    const annual_savings = monthly_bill * 12 * 0.8
+    return annual_savings < 500 // Low annual savings threshold
+  }
+
+  // Calculate priority score based on ROI
+  const calculatePriorityScore = (audit: Audit) => {
+    const roi = calculateROI(audit.monthly_bill, audit.roof_size)
+    const monthly_bill_score = audit.monthly_bill > 100 ? 30 : 10
+    const roof_size_score = audit.roof_size > 50 ? 20 : 10
+    return Math.min(100, monthly_bill_score + roof_size_score + (roi < 10 ? 40 : 0))
+  }
+
+  // Clean data display functions
+  const getDisplayName = (client_name: string) => {
+    return client_name && client_name.trim() !== '' ? client_name : 'Cliente Particular'
+  }
+
+  const getContactDisplay = (email?: string, phone?: string) => {
+    if (email || phone) {
+      return email || phone
+    }
+    return null
+  }
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
@@ -65,29 +103,26 @@ export default function Dashboard() {
 
       if (auditsError) throw auditsError
 
-      // Calculate KPIs
-      const pipelineValue = auditsData?.reduce((sum, audit) => sum + (audit.monthly_bill * 12 * 0.8 || 0), 0) || 0
-      
       // Calculate ROI for each audit if not present
-      const auditsWithROI = auditsData?.map(audit => {
-        if (!audit.roi_years) {
-          // Simple ROI calculation: (system_cost / annual_savings)
-          const systemCost = audit.roof_size * 800 // €800 per m²
-          const annualSavings = audit.monthly_bill * 12 * 0.8
-          audit.roi_years = systemCost / annualSavings
-        }
-        return audit
-      }) || []
-      
-      const hotAudits = auditsWithROI?.filter(audit => audit.roi_years && audit.roi_years <= 6).length || 0
-      const closedAudits = auditsData?.filter(audit => audit.status === 'closed').length || 0
-      const conversionRate = auditsData?.length > 0 ? (closedAudits / auditsData.length) * 100 : 0
+      const auditsWithROI = auditsData?.map((audit: any) => ({
+        ...audit,
+        roi_years: calculateROI(audit.monthly_bill, audit.roof_size),
+        needs_review: needsROIReview(audit.monthly_bill, audit.roof_size)
+      })) || []
+
+      // Calculate KPIs dynamically from real data
+      const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
+        return sum + (audit.roof_size * 1500)
+      }, 0)
+
+      const hotAudits = auditsWithROI.filter((audit: any) => audit.priority_score > 70).length
+      const conversionRate = auditsWithROI.length > 0 ? (hotAudits / auditsWithROI.length) * 100 : 0
 
       // Sort audits by priority score (ROI-based)
-      const sortedAudits = auditsWithROI?.map(audit => ({
+      const sortedAudits = auditsWithROI.map((audit: any) => ({
         ...audit,
         priority_score: calculatePriorityScore(audit)
-      })).sort((a, b) => b.priority_score - a.priority_score) || []
+      })).sort((a: any, b: any) => b.priority_score - a.priority_score) || []
 
       setAudits(sortedAudits)
       setKpis({
@@ -103,33 +138,8 @@ export default function Dashboard() {
     }
   }
 
-  const calculatePriorityScore = (audit: Audit): number => {
-    let score = 0
+      
     
-    // ROI priority (higher score for better ROI)
-    if (audit.roi_years && audit.roi_years <= 3) score += 100
-    else if (audit.roi_years && audit.roi_years <= 6) score += 60
-    else if (audit.roi_years && audit.roi_years <= 10) score += 30
-    
-    // Monthly bill priority (higher bills = more savings potential)
-    const annualSavings = audit.monthly_bill * 12 * 0.8
-    if (annualSavings >= 5000) score += 50
-    else if (annualSavings >= 3000) score += 30
-    else if (annualSavings >= 1500) score += 15
-    
-    // Status priority (new audits get higher score)
-    if (audit.status === 'new') score += 40
-    else if (audit.status === 'contacted') score += 20
-    else if (audit.status === 'proposal_sent') score += 10
-    
-    // Recency priority (more recent = higher score)
-    const daysSinceCreation = Math.floor((Date.now() - new Date(audit.created_at).getTime()) / (1000 * 60 * 60 * 24))
-    if (daysSinceCreation <= 7) score += 30
-    else if (daysSinceCreation <= 30) score += 15
-    
-    return score
-  }
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
