@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { 
   TrendingUp, 
@@ -18,7 +19,10 @@ import {
   MoreVertical,
   Eye,
   ArrowRight,
-  UserX
+  UserX,
+  Zap,
+  FileText,
+  MessageCircle
 } from 'lucide-react'
 
 interface Audit {
@@ -45,6 +49,7 @@ interface KPICards {
 }
 
 export default function Dashboard() {
+  const router = useRouter()
   const [audits, setAudits] = useState<Audit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,12 +58,23 @@ export default function Dashboard() {
     fetchDashboardData()
   }, [])
 
-  // Calculate ROI for each audit (Hormozi Gold Standard - Realistic)
+  // Calculate ROI for each audit (CTO SaaS Standard)
   const calculateROI = (monthly_bill: number, roof_size: number) => {
-    const annual_savings = monthly_bill * 12 * 0.8 // 80% savings efficiency
-    const system_cost = roof_size * 1200 // Real installation cost per m²
-    const roi_years = system_cost / annual_savings
-    return roi_years
+    const potencia_kW = roof_size * 0.15 // 150W por m2 (paneles estándar)
+    const produccion_anual = potencia_kW * 1500 // horas sol media España
+    const ahorro_real = produccion_anual * 0.25 // €0.25/kWh precio medio
+    const coste_instalacion = potencia_kW * 1100 // €1100 por kW
+    
+    // Validación de datos
+    const ahorro_esperado = monthly_bill * 12 * 0.75
+    const diferencia = Math.abs(ahorro_real - ahorro_esperado) / ahorro_esperado
+    
+    if (diferencia > 0.3) {
+      // Datos inconsistentes (>30% diferencia)
+      return { roi: coste_instalacion / ahorro_esperado, warning: true }
+    }
+    
+    return { roi: coste_instalacion / ahorro_real, warning: false }
   }
 
   // Calculate estimated power from roof size (simplified: 1m² = 0.15kW)
@@ -74,7 +90,8 @@ export default function Dashboard() {
 
   // Get ROI badge and color
   const getROIBadge = (monthly_bill: number, roof_size: number) => {
-    const roi = calculateROI(monthly_bill, roof_size)
+    const roiResult = calculateROI(monthly_bill, roof_size)
+    const roi = roiResult.roi
     if (roi > 12) {
       return { text: 'Revisar', color: 'bg-orange-500 text-white' }
     } else if (roi < 6) {
@@ -91,7 +108,8 @@ export default function Dashboard() {
 
   // Calculate priority score based on ROI
   const calculatePriorityScore = (audit: Audit) => {
-    const roi = calculateROI(audit.monthly_bill, audit.roof_size)
+    const roiResult = calculateROI(audit.monthly_bill, audit.roof_size)
+    const roi = roiResult.roi
     const monthly_bill_score = audit.monthly_bill > 100 ? 30 : 10
     const roof_size_score = audit.roof_size > 50 ? 20 : 10
     return Math.min(100, monthly_bill_score + roof_size_score + (roi < 10 ? 40 : 0))
@@ -190,13 +208,22 @@ export default function Dashboard() {
   }
 
   // Calculate KPIs and processing variables before JSX
-  const auditsWithROI = audits.map((audit: any) => ({
-    ...audit,
-    roi_years: audit.roi_years || calculateROI(audit.monthly_bill, audit.roof_size),
-    roi_badge: audit.roi_badge || getROIBadge(audit.monthly_bill, audit.roof_size),
-    lead_value: audit.lead_value || calculateLeadValue(audit.roof_size),
-    value_25_years: audit.value_25_years || calculate25YearSavings(audit.monthly_bill)
-  }))
+  const auditsWithROI = audits.map((audit: any) => {
+    const roiResult = calculateROI(audit.monthly_bill, audit.roof_size)
+    const potencia_kW = audit.roof_size * 0.15
+    const coste_instalacion = potencia_kW * 1100
+    const comision_estimada = coste_instalacion * 0.10 // 10% comisión para el instalador
+    
+    return {
+      ...audit,
+      roi_years: audit.roi_years || roiResult.roi,
+      roi_warning: roiResult.warning,
+      roi_badge: audit.roi_badge || getROIBadge(audit.monthly_bill, audit.roof_size),
+      lead_value: audit.lead_value || calculateLeadValue(audit.roof_size),
+      comision_estimada: audit.comision_estimada || comision_estimada,
+      value_25_years: audit.value_25_years || calculate25YearSavings(audit.monthly_bill)
+    }
+  })
 
   // Calculate KPIs dynamically from real data (Hormozi Gold Standard)
   const pipelineValue = auditsWithROI.reduce((sum: number, audit: any) => {
@@ -213,6 +240,15 @@ export default function Dashboard() {
     hot_leads: hotAudits || 0,
     conversion_rate: conversionRate || 0
   }
+
+  // Handle opening audit details
+  const handleOpenAudit = (auditId: string) => {
+    router.push(`/auditoria/${auditId}`)
+  }
+
+  // Calculate potential percentage (leads with ROI < 10 years)
+  const goodROILeads = auditsWithROI.filter((audit: any) => audit.roi_years < 10).length
+  const potentialPercentage = auditsWithROI.length > 0 ? (goodROILeads / auditsWithROI.length) * 100 : 0
 
   if (loading) {
     return (
@@ -295,6 +331,13 @@ export default function Dashboard() {
                 <p className="text-slate-400">Panel de Control de Instaladores Solares</p>
               </div>
               <div className="flex items-center space-x-4">
+                <button 
+                  onClick={() => router.push('/audit-form')}
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all duration-200 transform hover:scale-105"
+                >
+                  <Target className="w-5 h-5 mr-2" />
+                  Nuevo Análisis Solar
+                </button>
                 <button className="p-2 text-slate-400 hover:text-white transition-colors">
                   <Calendar className="w-5 h-5" />
                 </button>
@@ -366,12 +409,12 @@ export default function Dashboard() {
                 <Target className="w-5 h-5 mr-2 text-emerald-400" />
                 Potencial de Conversión
               </h3>
-              <span className="text-emerald-400 font-bold">{conversionRate.toFixed(1)}%</span>
+              <span className="text-emerald-400 font-bold">{potentialPercentage.toFixed(1)}%</span>
             </div>
             <div className="w-full bg-slate-800/50 rounded-full h-4 overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 h-4 rounded-full transition-all duration-700 ease-out shadow-lg shadow-emerald-500/25"
-                style={{ width: `${Math.min(conversionRate, 100)}%` }}
+                style={{ width: `${Math.min(potentialPercentage, 100)}%` }}
               >
                 <div className="h-full bg-white/20 animate-pulse"></div>
               </div>
@@ -384,7 +427,7 @@ export default function Dashboard() {
               <span className="text-xs text-slate-500">100%</span>
             </div>
             <div className="mt-3 text-sm text-slate-400">
-              {positiveROILeads} de {auditsWithROI.length} leads con ROI positivo (&lt;12 años)
+              {goodROILeads} de {auditsWithROI.length} leads con ROI excelente (&lt;10 años)
             </div>
           </div>
 
@@ -408,7 +451,7 @@ export default function Dashboard() {
                   <tr className="border-b border-slate-800">
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Empresa</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Contacto</th>
-                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Valor</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Comisión Estimada</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">ROI</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Estado</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Prioridad</th>
@@ -445,10 +488,16 @@ export default function Dashboard() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="text-emerald-400 font-bold text-lg">
-                            €{audit.lead_value.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                          <div className="text-yellow-400 font-bold text-lg">
+                            €{audit.comision_estimada?.toLocaleString('es-ES', { maximumFractionDigits: 0 }) || audit.lead_value?.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
                           </div>
-                          <div className="text-slate-500 text-xs">Valor del Lead</div>
+                          <div className="text-slate-500 text-xs">Comisión (10%)</div>
+                          {audit.roi_years < 5 && (
+                            <div className="flex items-center mt-1 text-orange-400">
+                              <span className="text-sm mr-1">🔥</span>
+                              <span className="text-xs font-medium">Cierre Inmediato</span>
+                            </div>
+                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
@@ -474,7 +523,10 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <button className="inline-flex items-center px-3 py-2 border border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg font-medium text-sm transition-all duration-200">
+                          <button 
+                            onClick={() => handleOpenAudit(audit.id)}
+                            className="inline-flex items-center px-3 py-2 border border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg font-medium text-sm transition-all duration-200"
+                          >
                             <ArrowRight className="w-4 h-4 mr-2" />
                             Abrir Auditoría
                           </button>
@@ -493,6 +545,30 @@ export default function Dashboard() {
                 <p className="text-slate-400">Las auditorías aparecerán aquí cuando las generes</p>
               </div>
             )}
+          </div>
+
+          {/* Herramientas de Cierre - Bonus Module */}
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                Herramientas de Cierre
+              </h3>
+              <span className="text-yellow-400 text-sm font-medium">Aumenta tu valor percibido</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button className="inline-flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:scale-105">
+                <FileText className="w-5 h-5 mr-2" />
+                Generar PDF de Venta
+              </button>
+              <button className="inline-flex items-center justify-center px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-xl shadow-lg shadow-green-500/25 transition-all duration-200 transform hover:scale-105">
+                <MessageCircle className="w-5 h-5 mr-2" />
+                Enviar por WhatsApp
+              </button>
+            </div>
+            <div className="mt-4 text-sm text-slate-400 text-center">
+              El software hace el trabajo duro por ti - Cierra más ventas en menos tiempo
+            </div>
           </div>
         </div>
       </div>
