@@ -44,8 +44,14 @@ export default function LoginPage() {
         setCheckingSession(false)
       }
     }
-    checkSession()
-  }, [router, mode])
+    
+    // Only check session if mode is determined
+    if (mode !== null) {
+      checkSession()
+    } else {
+      setCheckingSession(false)
+    }
+  }, [mode]) // Remove router from dependencies to prevent infinite loop
 
   const handleTraditionalLogin = async (e: React.FormEvent) => {
     e.preventDefault()
